@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velocity Triangle Assembly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f1e2;
+    --paper-2:#efe6d0;
+    --panel:#faf6ea;
+    --ink:#28241f;
+    --ink-soft:#786c58;
+    --ink-faint:#a89a7d;
+    --line:#d9cbaa;
+    --line-strong:#c3b088;
+    --brass:#9c6f26;
+    --brass-soft:#c99a46;
+    --track:#e3d6b5;
+
+    --c-u:#3a352f;
+    --c-v1:#2454c7;
+    --c-v2:#3fa0d8;
+    --c-vr1:#b3341f;
+    --c-vr2:#d98a34;
+    --c-vf1:#1f7a4c;
+    --c-vf2:#63b285;
+    --c-vw1:#6a3fb5;
+    --c-vw2:#a97fdb;
+    --c-alpha:#9c6f26;
+    --c-beta:#1a7d94;
+
+    --shadow: 0 1px 2px rgba(40,36,31,.06), 0 6px 18px -8px rgba(40,36,31,.18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#1b1815;
+      --paper-2:#221e19;
+      --panel:#211d18;
+      --ink:#ece4d3;
+      --ink-soft:#b6a889;
+      --ink-faint:#7d715a;
+      --line:#3a342b;
+      --line-strong:#4a4234;
+      --brass:#d9a94f;
+      --brass-soft:#c99a46;
+      --track:#332d24;
+
+      --c-u:#d8cdb7;
+      --c-v1:#6fa2ff;
+      --c-v2:#7fd0ff;
+      --c-vr1:#ff8a70;
+      --c-vr2:#f2ae64;
+      --c-vf1:#5fd39a;
+      --c-vf2:#a3e6c1;
+      --c-vw1:#b494ec;
+      --c-vw2:#d6bdf5;
+      --c-alpha:#e0b45c;
+      --c-beta:#5cc9e0;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 24px -10px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#1b1815;
+    --paper-2:#221e19;
+    --panel:#211d18;
+    --ink:#ece4d3;
+    --ink-soft:#b6a889;
+    --ink-faint:#7d715a;
+    --line:#3a342b;
+    --line-strong:#4a4234;
+    --brass:#d9a94f;
+    --brass-soft:#c99a46;
+    --track:#332d24;
+
+    --c-u:#d8cdb7;
+    --c-v1:#6fa2ff;
+    --c-v2:#7fd0ff;
+    --c-vr1:#ff8a70;
+    --c-vr2:#f2ae64;
+    --c-vf1:#5fd39a;
+    --c-vf2:#a3e6c1;
+    --c-vw1:#b494ec;
+    --c-vw2:#d6bdf5;
+    --c-alpha:#e0b45c;
+    --c-beta:#5cc9e0;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 24px -10px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    display:flex; flex-direction:column;
+    min-height:100vh;
+  }
+  h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:600; margin:0; text-wrap:balance;}
+  .mono{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+
+  header{
+    padding:20px 28px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+  }
+  header h1{font-size:1.5rem; letter-spacing:.01em;}
+  header .sub{color:var(--ink-soft); font-size:.92rem; max-width:52ch; line-height:1.5;}
+
+  main{
+    flex:1;
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    gap:0;
+    min-height:0;
+  }
+  aside{
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    padding:18px 18px 24px;
+    overflow-y:auto;
+    display:flex; flex-direction:column; gap:22px;
+  }
+  .block-title{
+    font-size:.7rem; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--brass); font-weight:600; margin-bottom:10px;
+  }
+  .field{ margin-bottom:12px; }
+  .field:last-child{ margin-bottom:0; }
+  .field label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:.82rem; color:var(--ink-soft); margin-bottom:5px;
+  }
+  .field label b{ color:var(--ink); font-weight:500; }
+  .field .val{ font-family:"IBM Plex Mono", monospace; font-size:.82rem; color:var(--ink); }
+  .field .row{ display:flex; align-items:center; gap:8px; }
+  input[type="range"]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:4px; border-radius:2px;
+    background:var(--track); outline:none; cursor:pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:15px; height:15px; border-radius:50%;
+    background:var(--brass); border:2px solid var(--panel); box-shadow:0 0 0 1px var(--brass);
+    cursor:pointer; margin-top:0;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%;
+    background:var(--brass); border:2px solid var(--panel); box-shadow:0 0 0 1px var(--brass);
+    cursor:pointer;
+  }
+  select, button{
+    font-family:inherit; font-size:.85rem; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line-strong); border-radius:6px;
+    padding:6px 10px; cursor:pointer;
+  }
+  select{ width:100%; }
+  button:hover, select:hover{ border-color:var(--brass-soft); }
+  button:focus-visible, select:focus-visible, input:focus-visible{
+    outline:2px solid var(--brass); outline-offset:2px;
+  }
+
+  hr.sep{ border:none; border-top:1px solid var(--line); margin:0; }
+
+  .legend{ display:flex; flex-direction:column; gap:6px; }
+  .legend .item{ display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--ink-soft); }
+  .legend .swatch{ width:16px; height:3px; border-radius:2px; flex:none; }
+  .legend .item b{ color:var(--ink); font-weight:500; font-family:"IBM Plex Mono",monospace; min-width:2.6em; }
+  .legend .item.arc .swatch{ width:10px; height:10px; border-radius:50%; }
+
+  .results{ display:flex; flex-direction:column; gap:10px; }
+  .results .grp{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; font-size:.8rem; }
+  .results .grp .k{ color:var(--ink-soft); }
+  .results .grp .v{ font-family:"IBM Plex Mono",monospace; text-align:right; }
+  .results .head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); margin-bottom:2px;}
+
+  section.stage{
+    position:relative;
+    display:flex; flex-direction:column;
+    min-width:0; min-height:0;
+    background:
+      radial-gradient(ellipse at 50% 0%, var(--paper-2), transparent 60%),
+      var(--paper);
+  }
+  .stage-inner{
+    flex:1; display:flex; align-items:center; justify-content:center; padding:18px;
+    min-height:0;
+  }
+  svg#diagram{
+    width:100%; height:100%; max-width:1000px; max-height:640px;
+  }
+
+  .phase-pill{
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--line-strong); border-radius:999px;
+    padding:5px 16px; font-size:.75rem; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--brass); font-weight:600; box-shadow:var(--shadow);
+    white-space:nowrap;
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    background:var(--panel);
+    padding:14px 28px 18px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .transport{
+    display:flex; align-items:center; gap:16px;
+  }
+  .transport .playbtn{
+    width:40px; height:40px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--brass); border:none; color:var(--panel);
+    font-size:1rem;
+  }
+  .transport .playbtn:hover{ background:var(--brass-soft); }
+  .transport .scrub{ flex:1; display:flex; flex-direction:column; gap:4px; }
+  .transport .scrub .labels{
+    display:flex; justify-content:space-between; font-size:.68rem;
+    color:var(--ink-faint); text-transform:uppercase; letter-spacing:.06em;
+  }
+  .transport .scrub .labels span{ white-space:nowrap; }
+  .transport .scrub .labels span:last-child{ text-align:right; }
+  .transport .pct{ font-family:"IBM Plex Mono",monospace; font-size:.85rem; color:var(--ink-soft); min-width:3.6em; text-align:right; }
+  .speedwrap{ display:flex; align-items:center; gap:10px; font-size:.75rem; color:var(--ink-soft); }
+  .speedwrap input[type=range]{ width:120px; }
+
+  @media (max-width: 860px){
+    main{ grid-template-columns: 1fr; grid-template-rows:auto 1fr; }
+    aside{ border-right:none; border-bottom:1px solid var(--line); max-height:44vh; }
+  }
+  @media (max-width: 640px){
+    header{ padding:16px 16px 12px; }
+    footer{ padding:12px 16px 16px; gap:12px; }
+    .transport{ flex-wrap:wrap; row-gap:10px; }
+    .transport .scrub{ order:1; flex-basis:100%; }
+    .transport .playbtn{ order:2; }
+    .transport .pct{ order:3; }
+    .speedwrap{ order:4; margin-left:auto; }
+    .transport .scrub .labels{ font-size:.6rem; }
+  }
+
+  /* SVG element classes */
+  .baseline{ stroke:var(--line-strong); stroke-width:1; stroke-dasharray:2 3; }
+  .vec{ fill:none; stroke-width:2.75; stroke-linecap:round; }
+  .vec-u{ stroke:var(--c-u); stroke-width:2.5; }
+  .vec-v1{ stroke:var(--c-v1); }
+  .vec-v2{ stroke:var(--c-v2); }
+  .vec-vr1{ stroke:var(--c-vr1); }
+  .vec-vr2{ stroke:var(--c-vr2); }
+  .vec-vf1{ stroke:var(--c-vf1); stroke-dasharray:5 4; }
+  .vec-vf2{ stroke:var(--c-vf2); stroke-dasharray:5 4; }
+  .vec-vw1{ stroke:var(--c-vw1); stroke-width:1.6; }
+  .vec-vw2{ stroke:var(--c-vw2); stroke-width:1.6; }
+  .arc-a{ fill:none; stroke:var(--c-alpha); stroke-width:1.4; }
+  .arc-b{ fill:none; stroke:var(--c-beta); stroke-width:1.4; }
+  .pt{ fill:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:12px; }
+  .lbl{ font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; font-weight:600; }
+  .lbl-u{ fill:var(--c-u); }
+  .lbl-v1{ fill:var(--c-v1); } .lbl-v2{ fill:var(--c-v2); }
+  .lbl-vr1{ fill:var(--c-vr1); } .lbl-vr2{ fill:var(--c-vr2); }
+  .lbl-vf1{ fill:var(--c-vf1); } .lbl-vf2{ fill:var(--c-vf2); }
+  .lbl-vw1{ fill:var(--c-vw1); } .lbl-vw2{ fill:var(--c-vw2); }
+  .lbl-a{ fill:var(--c-alpha); font-size:11.5px; }
+  .lbl-b{ fill:var(--c-beta); font-size:11.5px; }
+  .dot{ fill:var(--ink); }
+  .group-title{ font-family:"Fraunces",serif; font-size:15px; font-weight:600; fill:var(--ink-soft); text-anchor:middle; }
+  .combined-title{ font-family:"Fraunces",serif; font-size:17px; font-weight:600; fill:var(--brass); text-anchor:middle; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Velocity Triangle Assembly</h1>
+  <div class="sub">Watch the inlet and outlet velocity triangles of an axial turbine stage slide onto their shared blade-speed line <span class="mono">u</span> to form the combined diagram (Venkanna, <em>Fig. 6.9</em>). Scrub the rail below at your own pace.</div>
+</header>
+
+<main>
+  <aside>
+    <div>
+      <div class="block-title">Stage inputs</div>
+      <div class="field">
+        <label><b>u</b> &nbsp;blade velocity <span class="val" id="val-u">200 m/s</span></label>
+        <input type="range" id="in-u" min="50" max="400" step="5" value="200">
+      </div>
+      <div class="field">
+        <label><b>V₁</b> &nbsp;inlet absolute velocity <span class="val" id="val-V1">600 m/s</span></label>
+        <input type="range" id="in-V1" min="150" max="900" step="5" value="600">
+      </div>
+      <div class="field">
+        <label><b>α₁</b> &nbsp;inlet nozzle angle <span class="val" id="val-a1">20°</span></label>
+        <input type="range" id="in-a1" min="10" max="45" step="1" value="20">
+      </div>
+      <div class="field">
+        <label><b>β₂</b> &nbsp;blade exit angle <span class="val" id="val-b2">30°</span></label>
+        <input type="range" id="in-b2" min="10" max="60" step="1" value="30">
+      </div>
+      <div class="field">
+        <label><b>k</b> &nbsp;blade velocity coeff. <span class="val" id="val-k">0.85</span></label>
+        <input type="range" id="in-k" min="0.5" max="1" step="0.01" value="0.85">
+      </div>
+      <div class="field">
+        <label>Preset</label>
+        <select id="preset">
+          <option value="custom">Custom</option>
+          <option value="delaval" selected>Classic impulse example</option>
+          <option value="symmetric">Symmetric blading (k=1, β₂=β₁)</option>
+          <option value="lowfriction">Low blade friction (k=0.95)</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <div>
+      <div class="block-title">Results</div>
+      <div class="results">
+        <div>
+          <div class="head">Inlet triangle</div>
+          <div class="grp">
+            <div class="k">V<sub>f1</sub></div><div class="v" id="r-vf1">–</div>
+            <div class="k">V<sub>w1</sub></div><div class="v" id="r-vw1">–</div>
+            <div class="k">V<sub>r1</sub></div><div class="v" id="r-vr1">–</div>
+            <div class="k">β₁</div><div class="v" id="r-b1">–</div>
+          </div>
+        </div>
+        <div>
+          <div class="head">Outlet triangle</div>
+          <div class="grp">
+            <div class="k">V<sub>r2</sub></div><div class="v" id="r-vr2">–</div>
+            <div class="k">V<sub>f2</sub></div><div class="v" id="r-vf2">–</div>
+            <div class="k">V<sub>w2</sub></div><div class="v" id="r-vw2">–</div>
+            <div class="k">V₂</div><div class="v" id="r-v2">–</div>
+            <div class="k">α₂</div><div class="v" id="r-a2">–</div>
+          </div>
+        </div>
+        <div>
+          <div class="head">Stage</div>
+          <div class="grp">
+            <div class="k">ΔV<sub>w</sub></div><div class="v" id="r-dvw">–</div>
+            <div class="k">Work/kg</div><div class="v" id="r-work">–</div>
+            <div class="k">Diagram η</div><div class="v" id="r-eff">–</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <div>
+      <div class="block-title">Legend</div>
+      <div class="legend">
+        <div class="item"><span class="swatch" style="background:var(--c-u)"></span><b>u</b> blade velocity</div>
+        <div class="item"><span class="swatch" style="background:var(--c-v1)"></span><b>V₁</b> abs. velocity, inlet</div>
+        <div class="item"><span class="swatch" style="background:var(--c-v2)"></span><b>V₂</b> abs. velocity, outlet</div>
+        <div class="item"><span class="swatch" style="background:var(--c-vr1)"></span><b>Vr₁</b> rel. velocity, inlet</div>
+        <div class="item"><span class="swatch" style="background:var(--c-vr2)"></span><b>Vr₂</b> rel. velocity, outlet</div>
+        <div class="item"><span class="swatch" style="background:var(--c-vf1)"></span><b>Vf₁,Vf₂</b> flow (axial)</div>
+        <div class="item"><span class="swatch" style="background:var(--c-vw1)"></span><b>Vw₁,Vw₂</b> whirl (tangential)</div>
+        <div class="item arc"><span class="swatch" style="background:var(--c-alpha)"></span><b>α</b> absolute angle</div>
+        <div class="item arc"><span class="swatch" style="background:var(--c-beta)"></span><b>β</b> blade angle</div>
+      </div>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="phase-pill" id="phasePill">Separate triangles</div>
+    <div class="stage-inner">
+      <svg id="diagram" viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ah-u" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--c-u)"/></marker>
+          <marker id="ah-v1" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--c-v1)"/></marker>
+          <marker id="ah-v2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--c-v2)"/></marker>
+          <marker id="ah-vr1" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--c-vr1)"/></marker>
+          <marker id="ah-vr2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--c-vr2)"/></marker>
+          <marker id="ah-vf1" markerWidth="8" markerHeight="8" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="var(--c-vf1)"/></marker>
+          <marker id="ah-vf2" markerWidth="8" markerHeight="8" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="var(--c-vf2)"/></marker>
+          <marker id="ah-vw1" markerWidth="7" markerHeight="7" refX="4.5" refY="2" orient="auto"><path d="M0,0 L4.5,2 L0,4 Z" fill="var(--c-vw1)"/></marker>
+          <marker id="ah-vw2" markerWidth="7" markerHeight="7" refX="4.5" refY="2" orient="auto"><path d="M0,0 L4.5,2 L0,4 Z" fill="var(--c-vw2)"/></marker>
+        </defs>
+        <g id="scene"></g>
+      </svg>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="transport">
+    <button class="playbtn" id="playBtn" aria-label="Play assembly animation" title="Play">▶</button>
+    <div class="scrub">
+      <div class="labels"><span>Separate (Fig. 6.8)</span><span>Assembling</span><span>Combined (Fig. 6.9)</span></div>
+      <input type="range" id="progress" min="0" max="1000" step="1" value="0" aria-label="Assembly progress">
+    </div>
+    <div class="pct" id="pct">0%</div>
+    <div class="speedwrap">
+      <span>Auto speed</span>
+      <input type="range" id="speed" min="1000" max="9000" step="250" value="3500">
+      <span class="mono" id="speedVal">3.5s</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const els = {
+    u:$('in-u'), V1:$('in-V1'), a1:$('in-a1'), b2:$('in-b2'), k:$('in-k'),
+    preset:$('preset'), progress:$('progress'), playBtn:$('playBtn'), speed:$('speed'),
+    speedVal:$('speedVal'), pct:$('pct'), phasePill:$('phasePill'), scene:$('scene')
+  };
+
+  const PRESETS = {
+    delaval:   {u:200, V1:600, a1:20, b2:30, k:0.85},
+    symmetric: {u:180, V1:500, a1:22, b2:22, k:1.0},
+    lowfriction:{u:220, V1:650, a1:18, b2:33, k:0.95}
+  };
+
+  function applyPreset(name){
+    const p = PRESETS[name];
+    if(!p) return;
+    els.u.value=p.u; els.V1.value=p.V1; els.a1.value=p.a1; els.b2.value=p.b2; els.k.value=p.k;
+  }
+
+  // ---------- physics ----------
+  function computeInlet(u, V1, alpha1Deg){
+    const a1 = alpha1Deg*Math.PI/180;
+    const Vw1 = V1*Math.cos(a1);
+    const Vf1 = V1*Math.sin(a1);
+    const C = {x:Vw1, y:-Vf1};
+    const A = {x:0,y:0}, B = {x:u,y:0}, E = {x:Vw1,y:0};
+    const Vr1x = C.x-u, Vr1y = C.y;
+    const Vr1 = Math.hypot(Vr1x,Vr1y);
+    const beta1 = Math.atan2(Math.abs(Vr1y), Math.abs(Vr1x))*180/Math.PI;
+    return {u,V1,alpha1:alpha1Deg,Vw1,Vf1,Vr1,beta1,A,B,C,E,Vr1x};
+  }
+  function computeOutlet(u, Vr1, beta2Deg, k){
+    const Vr2 = k*Vr1;
+    const b2 = beta2Deg*Math.PI/180;
+    const Dx = u - Vr2*Math.cos(b2);
+    const Dy = -Vr2*Math.sin(b2);
+    const Vf2 = Vr2*Math.sin(b2);
+    const Vw2 = Vr2*Math.cos(b2) - u;
+    const V2 = Math.hypot(Dx,Dy);
+    const alpha2 = Math.atan2(Math.abs(Dy), Math.abs(Dx))*180/Math.PI;
+    const A = {x:0,y:0}, B = {x:u,y:0}, D = {x:Dx,y:Dy}, F = {x:Dx,y:0};
+    return {u,Vr2,beta2:beta2Deg,Vf2,Vw2,V2,alpha2,A,B,D,F,Dx};
+  }
+
+  function fmt(n){ return (Math.round(n*10)/10).toFixed(1); }
+
+  // ---------- geometry / rendering ----------
+  const VB_W=900, VB_H=600;
+  const originX=450, originY=250;
+  const SLOT_DX=225, SLOT_DY=165;
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function easeInOut(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+
+  function angleArc(vertexScreen, dirBaseline, dirVec, radius, cls){
+    // dirBaseline, dirVec: unit vectors in SCREEN space (y already flipped)
+    const a0 = Math.atan2(dirBaseline.y, dirBaseline.x);
+    let a1 = Math.atan2(dirVec.y, dirVec.x);
+    let sweep = a1-a0;
+    while(sweep>Math.PI) sweep-=2*Math.PI;
+    while(sweep<-Math.PI) sweep+=2*Math.PI;
+    const large = Math.abs(sweep)>Math.PI?1:0;
+    const sf = sweep>0?1:0;
+    const p0 = {x:vertexScreen.x+radius*Math.cos(a0), y:vertexScreen.y+radius*Math.sin(a0)};
+    const p1 = {x:vertexScreen.x+radius*Math.cos(a0+sweep), y:vertexScreen.y+radius*Math.sin(a0+sweep)};
+    const mid = a0+sweep/2;
+    const lp = {x:vertexScreen.x+(radius+13)*Math.cos(mid), y:vertexScreen.y+(radius+13)*Math.sin(mid)};
+    return {path:`<path class="${cls}" d="M ${p0.x.toFixed(1)} ${p0.y.toFixed(1)} A ${radius} ${radius} 0 ${large} ${sf} ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}"/>`, label:lp};
+  }
+
+  function render(){
+    const u = +els.u.value, V1 = +els.V1.value, a1 = +els.a1.value, b2 = +els.b2.value, k = +els.k.value;
+    const inlet = computeInlet(u,V1,a1);
+    const outlet = computeOutlet(u, inlet.Vr1, b2, k);
+
+    // live readouts
+    $('val-u').textContent = u+' m/s';
+    $('val-V1').textContent = V1+' m/s';
+    $('val-a1').textContent = a1+'°';
+    $('val-b2').textContent = b2+'°';
+    $('val-k').textContent = k.toFixed(2);
+    $('r-vf1').textContent = fmt(inlet.Vf1)+' m/s';
+    $('r-vw1').textContent = fmt(inlet.Vw1)+' m/s';
+    $('r-vr1').textContent = fmt(inlet.Vr1)+' m/s';
+    $('r-b1').textContent = fmt(inlet.beta1)+'°';
+    $('r-vr2').textContent = fmt(outlet.Vr2)+' m/s';
+    $('r-vf2').textContent = fmt(outlet.Vf2)+' m/s';
+    $('r-vw2').textContent = fmt(outlet.Vw2)+' m/s';
+    $('r-v2').textContent = fmt(outlet.V2)+' m/s';
+    $('r-a2').textContent = fmt(outlet.alpha2)+'°';
+    const dVw = inlet.Vw1+outlet.Vw2;
+    const work = u*dVw;
+    const eff = (2*u*dVw)/(V1*V1)*100;
+    $('r-dvw').textContent = fmt(dVw)+' m/s';
+    $('r-work').textContent = fmt(work/1000)+' kJ/kg';
+    $('r-eff').textContent = fmt(eff)+' %';
+
+    // ---- bounding boxes (unscaled local units) drive both scale and layout ----
+    function bbox(pts){
+      let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+      pts.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); });
+      return {minX,maxX,minY,maxY,w:maxX-minX,h:maxY-minY,cx:(minX+maxX)/2,cy:(minY+maxY)/2};
+    }
+    const inletBB = bbox([inlet.A, inlet.B, inlet.C, inlet.E]);
+    const outletBB = bbox([outlet.A, outlet.B, outlet.D, outlet.F]);
+    const combinedBB = bbox([inlet.A, inlet.B, inlet.C, inlet.E, outlet.A, outlet.B, outlet.D, outlet.F]);
+
+    // scale: fit the combined diagram into a comfortable box, then make sure the
+    // vertically-stacked separate layout (Fig. 6.8 style: inlet on top apex-down,
+    // outlet on bottom apex-up) still fits the viewBox.
+    const TARGET_COMBINED_W = 640, TARGET_H = 260, MARGIN_X = 60;
+    const MARGIN_TOP = 128, MARGIN_BOTTOM = 555, GAP_MID = 95;
+    let scale = Math.min(
+      TARGET_COMBINED_W/combinedBB.w,
+      TARGET_H/Math.max(inletBB.h, outletBB.h, 1),
+      (VB_W - 2*MARGIN_X)/Math.max(inletBB.w, outletBB.w, 1),
+      (MARGIN_BOTTOM - MARGIN_TOP - GAP_MID)/Math.max(inlet.Vf1 + outlet.Vf2, 1)
+    );
+    scale = Math.max(0.10, Math.min(scale, 1.4));
+
+    // progress
+    const raw = (+els.progress.value)/1000;
+    const t = easeInOut(raw);
+    const outFlip = lerp(-1, 1, t); // outlet triangle starts mirrored (apex up, Fig 6.8) and unflips into place (apex down, Fig 6.9)
+    $('pct').textContent = Math.round(raw*100)+'%';
+    els.phasePill.textContent = raw<0.03 ? 'Separate triangles' : raw>0.97 ? 'Combined diagram (Fig. 6.9)' : 'Assembling…';
+
+    const maxDepth = Math.max(inlet.Vf1, outlet.Vf2, 1);
+    const topY_combined = Math.max(210, Math.min(340, 335 - (maxDepth*scale)/2));
+
+    const topRow_in = MARGIN_TOP;
+    const bottomRow_out = topRow_in + inlet.Vf1*scale + GAP_MID + outlet.Vf2*scale;
+
+    const combinedOffset = {x: originX - combinedBB.cx*scale, y: topY_combined};
+    const inletOffset0 = {x: originX - inletBB.cx*scale, y: topRow_in};
+    const outletOffset0 = {x: originX - outletBB.cx*scale, y: bottomRow_out};
+    const offIn = {x: lerp(inletOffset0.x, combinedOffset.x, t), y: lerp(inletOffset0.y, combinedOffset.y, t)};
+    const offOut = {x: lerp(outletOffset0.x, combinedOffset.x, t), y: lerp(outletOffset0.y, combinedOffset.y, t)};
+
+    function toScreen(off, p){ return {x: off.x + p.x*scale, y: off.y - p.y*scale}; }
+
+    const iA=toScreen(offIn, inlet.A), iB=toScreen(offIn, inlet.B), iC=toScreen(offIn, inlet.C), iE=toScreen(offIn, inlet.E);
+    const oA=toScreen(offOut, outlet.A), oB=toScreen(offOut, outlet.B),
+          oD=toScreen(offOut, {x:outlet.D.x, y:outlet.D.y*outFlip}), oF=toScreen(offOut, outlet.F);
+
+    const sepFade = Math.max(0, 1-3*raw);
+    const combFade = Math.max(0, 3*raw-2);
+
+    const P = p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    const ln = (cls,p,q,marker) => `<line class="${cls}" x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}"${marker?` marker-end="url(#${marker})"`:''}/>`;
+
+    let svg = '';
+
+    // ---- INLET triangle ----
+    svg += `<g opacity="1">`;
+    svg += ln('baseline', iA, (iE.x>iB.x?iE:iB));
+    svg += ln('vec vec-u', iA, iB, 'ah-u');
+    svg += ln('vec vec-v1', iA, iC, 'ah-v1');
+    svg += ln('vec vec-vr1', iB, iC, 'ah-vr1');
+    svg += ln('vec vec-vf1', iE, iC, 'ah-vf1');
+    svg += ln('vec vec-vw1', iA, iE, 'ah-vw1');
+    // points
+    [['A',iA,-10,-8],['B',iB,6,-8],['C',iC,(iC.x<iA.x?-14:6), 16],['E',iE,6,-8]].forEach(([lab,p,dx,dy])=>{
+      svg += `<circle class="dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.2"/><text class="pt" x="${(p.x+dx).toFixed(1)}" y="${(p.y+dy).toFixed(1)}">${lab}</text>`;
+    });
+    // vector labels (midpoints, offset perpendicular-ish)
+    const mid=(p,q)=>({x:(p.x+q.x)/2,y:(p.y+q.y)/2});
+    let m;
+    m=mid(iA,iB); svg+=`<text class="lbl lbl-u" x="${m.x.toFixed(1)}" y="${(m.y-8).toFixed(1)}" text-anchor="middle">u</text>`;
+    m=mid(iA,iC); svg+=`<text class="lbl lbl-v1" x="${(m.x-8).toFixed(1)}" y="${(m.y-4).toFixed(1)}" text-anchor="end">V₁</text>`;
+    m=mid(iB,iC); svg+=`<text class="lbl lbl-vr1" x="${(m.x+8).toFixed(1)}" y="${(m.y-4).toFixed(1)}" text-anchor="start">Vr₁</text>`;
+    m=mid(iE,iC); svg+=`<text class="lbl lbl-vf1" x="${(m.x+7).toFixed(1)}" y="${m.y.toFixed(1)}" text-anchor="start">Vf₁</text>`;
+    svg+=`<text class="lbl lbl-vw1" x="${((iA.x+iE.x)/2).toFixed(1)}" y="${(iA.y-22).toFixed(1)}" text-anchor="middle">Vw₁</text>`;
+    // angle arcs
+    let arc;
+    arc = angleArc(iA, {x:1,y:0}, {x:(iC.x-iA.x), y:(iC.y-iA.y)}, 26, 'arc-a');
+    svg += arc.path; svg += `<text class="lbl lbl-a" x="${arc.label.x.toFixed(1)}" y="${arc.label.y.toFixed(1)}" text-anchor="middle">α₁</text>`;
+    const bDir1 = (inlet.Vr1x>=0)?{x:1,y:0}:{x:-1,y:0};
+    arc = angleArc(iB, bDir1, {x:(iC.x-iB.x), y:(iC.y-iB.y)}, 26, 'arc-b');
+    svg += arc.path; svg += `<text class="lbl lbl-b" x="${arc.label.x.toFixed(1)}" y="${arc.label.y.toFixed(1)}" text-anchor="middle">β₁</text>`;
+    svg += `<text class="group-title" x="${((iA.x+iE.x)/2).toFixed(1)}" y="${(Math.min(iA.y,iC.y)-46).toFixed(1)}" opacity="${sepFade.toFixed(2)}">INLET TRIANGLE</text>`;
+    svg += `</g>`;
+
+    // ---- OUTLET triangle ----
+    svg += `<g opacity="1">`;
+    svg += ln('baseline', (oF.x<oA.x?oF:oA), oB);
+    svg += ln('vec vec-u', oA, oB, 'ah-u');
+    svg += ln('vec vec-v2', oA, oD, 'ah-v2');
+    svg += ln('vec vec-vr2', oB, oD, 'ah-vr2');
+    svg += ln('vec vec-vf2', oF, oD, 'ah-vf2');
+    svg += ln('vec vec-vw2', oA, oF, 'ah-vw2');
+    [['A',oA,6,-8,sepFade],['B',oB,6,-8,sepFade],['D',oD,(oD.x<oB.x?-14:6),16,1],['F',oF,-12,-8,1]].forEach(([lab,p,dx,dy,op])=>{
+      svg += `<g opacity="${op.toFixed(2)}"><circle class="dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.2"/><text class="pt" x="${(p.x+dx).toFixed(1)}" y="${(p.y+dy).toFixed(1)}">${lab}</text></g>`;
+    });
+    m=mid(oA,oD); svg+=`<text class="lbl lbl-v2" x="${(m.x+8).toFixed(1)}" y="${(m.y-4).toFixed(1)}" text-anchor="start">V₂</text>`;
+    m=mid(oB,oD); svg+=`<text class="lbl lbl-vr2" x="${(m.x-8).toFixed(1)}" y="${(m.y-4).toFixed(1)}" text-anchor="end">Vr₂</text>`;
+    m=mid(oF,oD); svg+=`<text class="lbl lbl-vf2" x="${(m.x-7).toFixed(1)}" y="${m.y.toFixed(1)}" text-anchor="end">Vf₂</text>`;
+    svg+=`<text class="lbl lbl-vw2" x="${((oA.x+oF.x)/2).toFixed(1)}" y="${(oA.y-22).toFixed(1)}" text-anchor="middle">Vw₂</text>`;
+    arc = angleArc(oA, {x:-1,y:0}, {x:(oD.x-oA.x), y:(oD.y-oA.y)}, 26, 'arc-a');
+    svg += arc.path; svg += `<text class="lbl lbl-a" x="${arc.label.x.toFixed(1)}" y="${arc.label.y.toFixed(1)}" text-anchor="middle">α₂</text>`;
+    const bDir2 = ((outlet.Dx-u)<=0)?{x:-1,y:0}:{x:1,y:0};
+    arc = angleArc(oB, bDir2, {x:(oD.x-oB.x), y:(oD.y-oB.y)}, 26, 'arc-b');
+    svg += arc.path; svg += `<text class="lbl lbl-b" x="${arc.label.x.toFixed(1)}" y="${arc.label.y.toFixed(1)}" text-anchor="middle">β₂</text>`;
+    svg += `<text class="group-title" x="${((oA.x+oF.x)/2).toFixed(1)}" y="${(Math.min(oA.y,oD.y)-46).toFixed(1)}" opacity="${sepFade.toFixed(2)}">OUTLET TRIANGLE</text>`;
+    svg += `</g>`;
+
+    // combined title
+    svg += `<text class="combined-title" x="${originX}" y="40" opacity="${combFade.toFixed(2)}">COMBINED VELOCITY DIAGRAM — Fig. 6.9</text>`;
+
+    els.scene.innerHTML = svg;
+  }
+
+  // ---------- events ----------
+  ['u','V1','a1','b2','k'].forEach(k=>{
+    els[k].addEventListener('input', ()=>{ els.preset.value='custom'; render(); });
+  });
+  els.preset.addEventListener('change', ()=>{ applyPreset(els.preset.value); render(); });
+  els.progress.addEventListener('input', ()=>{ stopPlay(); render(); });
+  els.speed.addEventListener('input', ()=>{ els.speedVal.textContent=(els.speed.value/1000).toFixed(1)+'s'; });
+
+  let playing=false, rafId=null, playStart=0, playFrom=0;
+  function stopPlay(){
+    playing=false;
+    if(rafId) cancelAnimationFrame(rafId);
+    els.playBtn.textContent='▶'; els.playBtn.title='Play'; els.playBtn.setAttribute('aria-label','Play assembly animation');
+  }
+  function startPlay(){
+    if(+els.progress.value>=1000) els.progress.value=0;
+    playing=true; playStart=performance.now(); playFrom=+els.progress.value;
+    els.playBtn.textContent='⏸'; els.playBtn.title='Pause'; els.playBtn.setAttribute('aria-label','Pause assembly animation');
+    step();
+  }
+  function step(now){
+    if(!playing) return;
+    now = now || performance.now();
+    const dur = +els.speed.value;
+    const elapsed = now-playStart;
+    let v = playFrom + (elapsed/dur)*1000;
+    if(v>=1000){ v=1000; els.progress.value=v; render(); stopPlay(); return; }
+    els.progress.value = v;
+    render();
+    rafId = requestAnimationFrame(step);
+  }
+  els.playBtn.addEventListener('click', ()=>{ playing ? stopPlay() : startPlay(); });
+
+  applyPreset('delaval');
+  render();
+  window.addEventListener('resize', render);
+})();
+</script>
+</body>
+</html>

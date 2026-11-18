@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centrifugal Compressor Parts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+[hidden]{display:none!important}
+html{color-scheme:light}
+body{margin:0}
+/* Layout: diagram card on the left (side view / front view tabs, gas probe), parts list and explanation on the right, guided tour underneath. */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface2:#E4E9EE; --ink:#13202B; --muted:#55656F; --line:#C5CFD8;
+  --steel:#8A99A6; --steelfill:#D6DEE5; --accent:#D4103B; --accentsoft:#FBE3E8; --flowlo:#2B66F0; --flowhi:#F2701A; --focus:#0050FF;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161C; --surface:#18222B; --surface2:#222E39; --ink:#E6EDF2; --muted:#9AAAB6; --line:#2F3E4B;
+  --steel:#6F8191; --steelfill:#2A3844; --accent:#FF4F73; --accentsoft:#3A1A24; --flowlo:#5C8DFF; --flowhi:#FF8A3D; --focus:#6FA0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161C; --surface:#18222B; --surface2:#222E39; --ink:#E6EDF2; --muted:#9AAAB6; --line:#2F3E4B;
+  --steel:#6F8191; --steelfill:#2A3844; --accent:#FF4F73; --accentsoft:#3A1A24; --flowlo:#5C8DFF; --flowhi:#FF8A3D; --focus:#6FA0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 40px;margin:0}
+.wrap{max-width:1180px;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-size:1.55rem;line-height:1.2;margin:0 0 4px;font-weight:600;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:70ch}
+header .src{font-family:var(--mono);font-size:.78rem;color:var(--muted);margin-top:6px}
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:500 .9rem var(--font);padding:11px 8px;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:focus-visible,button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.stage{padding:10px}
+svg{display:block;width:100%;height:auto}
+.view[hidden]{display:none!important}
+.note{font-size:.76rem;color:var(--muted);padding:0 14px 10px}
+.part{cursor:pointer}
+.part .shape{transition:stroke .15s,fill .15s}
+.part:hover .shape,.part.on .shape{stroke:var(--accent);stroke-width:2.6}
+.part.on .fillable{fill:var(--accentsoft)}
+.badge circle{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.badge text{font:600 10.5px var(--mono);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.part.on .badge circle{fill:var(--accent);stroke:var(--accent)}
+.part.on .badge text{fill:#fff}
+.lead{stroke:var(--steel);stroke-width:1;fill:none}
+.dim{stroke:var(--muted);stroke-width:1.1;fill:none}
+.dimtxt{font:500 11px var(--mono);fill:var(--muted)}
+.axis{stroke:var(--muted);stroke-width:1;stroke-dasharray:8 4 2 4}
+.lbl{font:500 11.5px var(--font);fill:var(--muted)}
+.probe{padding:12px 14px 14px;border-top:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center}
+.probe label{font:500 .82rem var(--font);color:var(--muted)}
+.probe input[type=range]{width:100%;accent-color:var(--accent)}
+.bars{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.bar b{display:block;font:500 .75rem var(--font);color:var(--muted);margin-bottom:4px}
+.bar .track{height:10px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.bar .fill{height:100%;width:0;background:var(--ink);transition:width .08s linear}
+.bar.p .fill{background:var(--flowhi)} .bar.v .fill{background:var(--flowlo)} .bar.t .fill{background:var(--accent)}
+.bar small{font:400 .7rem var(--mono);color:var(--muted)}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--line)}
+button.btn{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:4px;font:500 .85rem var(--font);padding:8px 14px;cursor:pointer}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.info{padding:16px 18px;min-height:230px}
+.info .num{font:600 .8rem var(--mono);color:var(--accent);letter-spacing:.04em}
+.info h2{margin:2px 0 8px;font-size:1.2rem;font-weight:600;line-height:1.25}
+.info p{margin:0 0 10px}
+.info .theory{border-top:1px solid var(--line);padding-top:10px;color:var(--muted);font-size:.88rem}
+.info sub,.chip sub,.tourtxt sub{font-size:.72em}
+.info .theory b{color:var(--ink);font-weight:600}
+.chips{padding:12px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:4px;font:500 .8rem var(--font);padding:5px 9px;cursor:pointer;display:inline-flex;gap:6px;align-items:baseline}
+.chip i{font:600 .72rem var(--mono);color:var(--muted);font-style:normal}
+.chip.on{background:var(--accentsoft);border-color:var(--accent)}
+.chip.on i{color:var(--accent)}
+.chips h3{width:100%;margin:0 0 2px;font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tour{padding:16px 18px}
+.tour h3{margin:0 0 4px;font-size:1.05rem;font-weight:600}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px}
+.step{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:4px;font:500 .8rem var(--font);padding:6px 10px;cursor:pointer}
+.step.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.tourtxt{max-width:78ch;margin:0}
+.legend{display:flex;gap:10px;align-items:center;font-size:.75rem;color:var(--muted);padding:0 14px 10px}
+.legend .ramp{width:110px;height:8px;border-radius:2px;background:linear-gradient(90deg,var(--flowlo),var(--flowhi))}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <h1>Main components of a centrifugal compressor</h1>
+  <p>Redrawn from Fig. 4.1 as a schematic (not to scale), with the book's part numbers. Select a part, or step through the tour to follow the gas from the inlet pipe to the outlet.</p>
+  <div class="src">Source: Venkanna, Fundamentals of Turbomachinery, Fig. 4.1, pp. 247-248</div>
+</header>
+<div class="main">
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-b" aria-selected="true" aria-controls="view-b">Side view (b)</button>
+      <button class="tab" role="tab" id="tab-a" aria-selected="false" aria-controls="view-a">Front view (a)</button>
+    </div>
+    <div class="stage">
+      <div class="view" id="view-b" role="tabpanel">
+<svg viewBox="0 0 520 430" role="img" aria-label="Half section of a centrifugal compressor with numbered parts and animated gas flow">
+  <!-- axis -->
+  <line class="axis" x1="10" y1="370" x2="500" y2="370"/>
+  <text class="lbl" x="12" y="388">axis of rotation</text>
+
+  <!-- casing (6) -->
+  <g class="part" data-part="6">
+    <path class="shape" d="M20 215 L95 215 C118 215 130 240 150 240 Q285 240 297 110 L297 66" fill="none" stroke="var(--steel)" stroke-width="5" stroke-linejoin="round"/>
+    <path class="shape" d="M333 66 L333 108 L362 108 L362 358 L420 358" fill="none" stroke="var(--steel)" stroke-width="5" stroke-linejoin="round"/>
+    <g class="badge"><line class="lead" x1="212" y1="228" x2="226" y2="205"/><circle cx="230" cy="198" r="10"/><text x="230" y="198">6</text></g>
+  </g>
+
+  <!-- volute (5) -->
+  <g class="part" data-part="5">
+    <path class="shape fillable" d="M297 66 L297 62 A33 33 0 1 1 333 62 L333 66" fill="var(--surface2)" stroke="var(--steel)" stroke-width="5" stroke-linejoin="round" transform="translate(0,-2)"/>
+    <g class="badge"><line class="lead" x1="290" y1="22" x2="270" y2="22"/><circle cx="260" cy="22" r="10"/><text x="260" y="22">5</text></g>
+  </g>
+
+  <!-- outlet (18) -->
+  <g class="part" data-part="18">
+    <path class="shape" d="M345 26 L470 26 M345 54 L470 54" stroke="var(--steel)" stroke-width="5" fill="none"/>
+    <g class="badge"><circle cx="486" cy="40" r="10"/><text x="486" y="40">18</text></g>
+    <text class="lbl" x="372" y="16">to delivery</text>
+  </g>
+
+  <!-- diffuser (4) -->
+  <g class="part" data-part="4">
+    <rect class="shape fillable" x="300" y="68" width="30" height="42" fill="var(--steelfill)" fill-opacity=".35" stroke="var(--steel)" stroke-width="1" stroke-dasharray="3 3"/>
+    <g stroke="var(--steel)" stroke-width="3" class="shape-lines"><line x1="304" y1="104" x2="316" y2="76"/><line x1="316" y1="104" x2="328" y2="76"/></g>
+    <g class="badge"><line class="lead" x1="332" y1="92" x2="368" y2="92"/><circle cx="378" cy="92" r="10"/><text x="378" y="92">4</text></g>
+  </g>
+
+  <!-- hub / impeller disc (2) -->
+  <g class="part" data-part="2">
+    <path class="shape fillable" d="M130 325 L150 325 Q300 325 330 110 L360 110 L360 358 L130 358 Z" fill="var(--steelfill)" stroke="var(--steel)" stroke-width="2.5" stroke-linejoin="round"/>
+    <g class="badge"><line class="lead" x1="340" y1="300" x2="318" y2="300"/><circle cx="350" cy="300" r="10"/><text x="350" y="300">2</text></g>
+  </g>
+
+  <!-- shaft (1) -->
+  <g class="part" data-part="1">
+    <rect class="shape fillable" x="40" y="358" width="400" height="12" fill="var(--steelfill)" stroke="var(--steel)" stroke-width="2.5"/>
+    <g class="badge"><line class="lead" x1="300" y1="370" x2="300" y2="384"/><circle cx="300" cy="394" r="10"/><text x="300" y="394">1</text></g>
+  </g>
+
+  <!-- shroud (9) -->
+  <g class="part" data-part="9">
+    <path class="shape" d="M150 250 Q285 250 300 110" fill="none" stroke="var(--steel)" stroke-width="3" stroke-dasharray="9 3"/>
+    <g class="badge"><line class="lead" x1="262" y1="222" x2="244" y2="236"/><circle cx="270" cy="214" r="10"/><text x="270" y="214">9</text></g>
+  </g>
+
+  <!-- impeller blades (3) and inducer section (7), radial-blade impeller (8) -->
+  <g class="part" data-part="3">
+    <path class="shape" d="M150 288 Q292 288 315 110" fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+    <g class="badge"><line class="lead" x1="256" y1="285" x2="243" y2="276"/><circle cx="264" cy="291" r="10"/><text x="264" y="291">3</text></g>
+  </g>
+  <g class="part" data-part="7">
+    <rect class="shape fillable" x="152" y="252" width="46" height="70" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>
+    <g class="badge"><circle cx="205" cy="338" r="10"/><text x="205" y="338">7</text></g>
+  </g>
+  <g class="part" data-part="8">
+    <g class="badge"><line class="lead" x1="313" y1="168" x2="342" y2="168"/><circle cx="352" cy="168" r="10"/><text x="352" y="168">8</text></g>
+  </g>
+
+  <!-- accelerating nozzle (11) -->
+  <g class="part" data-part="11">
+    <path class="shape" d="M95 215 C118 215 130 240 150 240" fill="none" stroke="var(--steel)" stroke-width="5"/>
+    <g class="badge"><line class="lead" x1="118" y1="226" x2="128" y2="200"/><circle cx="132" cy="190" r="10"/><text x="132" y="190">11</text></g>
+  </g>
+
+  <!-- IGV (12) -->
+  <g class="part" data-part="12">
+    <g class="shape" stroke="var(--steel)" stroke-width="5" stroke-linecap="round" fill="none"><line x1="62" y1="258" x2="76" y2="238"/><line x1="62" y1="288" x2="76" y2="268"/><line x1="62" y1="318" x2="76" y2="298"/><line x1="62" y1="348" x2="76" y2="328"/></g>
+    <g class="badge"><line class="lead" x1="48" y1="300" x2="62" y2="300"/><circle cx="38" cy="300" r="10"/><text x="38" y="300">12</text></g>
+  </g>
+
+  <!-- impeller eye (10) -->
+  <g class="part" data-part="10">
+    <line class="shape" x1="150" y1="240" x2="150" y2="325" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>
+    <g class="badge"><line class="lead" x1="150" y1="240" x2="150" y2="214"/><circle cx="150" cy="204" r="10"/><text x="150" y="204">10</text></g>
+  </g>
+
+  <!-- radii: 13 rh, 14 rm, 15 rt, 16 r2, 17 r3 -->
+  <g class="part" data-part="13"><line class="dim shape" x1="118" y1="370" x2="118" y2="325"/><line class="dim" x1="112" y1="325" x2="150" y2="325"/>
+    <g class="badge"><circle cx="104" cy="347" r="10"/><text x="104" y="347">13</text></g></g>
+  <g class="part" data-part="14"><line class="dim shape" x1="130" y1="370" x2="130" y2="288" stroke-dasharray="4 3"/><line class="dim" x1="124" y1="288" x2="150" y2="288" stroke-dasharray="4 3"/>
+    <g class="badge"><circle cx="108" cy="302" r="10"/><text x="108" y="302">14</text></g></g>
+  <g class="part" data-part="15"><line class="dim shape" x1="140" y1="370" x2="140" y2="250"/><line class="dim" x1="134" y1="250" x2="150" y2="250"/>
+    <g class="badge"><circle cx="124" cy="262" r="10"/><text x="124" y="262">15</text></g></g>
+  <g class="part" data-part="16"><line class="dim shape" x1="388" y1="370" x2="388" y2="110"/><line class="dim" x1="332" y1="110" x2="394" y2="110"/><text class="dimtxt" x="394" y="240">r₂</text>
+    <g class="badge"><circle cx="388" cy="200" r="10"/><text x="388" y="200">16</text></g></g>
+  <g class="part" data-part="17"><line class="dim shape" x1="420" y1="370" x2="420" y2="66"/><line class="dim" x1="333" y1="66" x2="426" y2="66"/><text class="dimtxt" x="426" y="240">r₃</text>
+    <g class="badge"><circle cx="420" cy="150" r="10"/><text x="420" y="150">17</text></g></g>
+
+  <text class="dimtxt" x="148" y="400">r<tspan dy="3" font-size="8">h</tspan></text>
+  <text class="dimtxt" x="166" y="400">r<tspan dy="3" font-size="8">m</tspan></text>
+  <text class="dimtxt" x="184" y="400">r<tspan dy="3" font-size="8">t</tspan> = r<tspan dy="3" font-size="8">1</tspan></text>
+  <text class="lbl" x="148" y="416">eye: hub, mean and tip radii (13, 14, 15)</text>
+
+  <!-- gas particles and probe -->
+  <g id="partsB"></g>
+  <circle id="probeB" r="7" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+</svg>
+      </div>
+      <div class="view" id="view-a" role="tabpanel" hidden>
+<svg viewBox="0 0 420 400" role="img" aria-label="Front view of a centrifugal compressor with rotating impeller, diffuser vanes and volute">
+  <g class="part" data-part="5"><path id="voluteShape" class="shape fillable" fill="var(--surface2)" stroke="var(--steel)" stroke-width="4" stroke-linejoin="round"/>
+    <g class="badge"><circle cx="92" cy="92" r="10"/><text x="92" y="92">5</text></g></g>
+  <g class="part" data-part="6"><path id="casingRing" class="shape" fill="none" stroke="var(--steel)" stroke-width="4"/>
+    </g>
+  <circle cx="200" cy="200" r="127" fill="var(--surface)" stroke="var(--line)"/>
+  <g class="part" data-part="4"><g id="diffVanes" class="shape" stroke="var(--steel)" stroke-width="3" fill="none"></g>
+    <g class="badge"><circle cx="200" cy="62" r="10"/><text x="200" y="62">4</text></g></g>
+  <g class="part" data-part="8"><circle class="shape fillable" cx="200" cy="200" r="96" fill="var(--steelfill)" fill-opacity=".45" stroke="var(--steel)" stroke-width="2"/>
+    <g id="impVanes" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"></g>
+    <g class="badge"><circle cx="262" cy="150" r="10"/><text x="262" y="150">8</text></g></g>
+  <g class="part" data-part="10"><circle class="shape" cx="200" cy="200" r="26" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>
+    </g>
+  <g class="part" data-part="1"><circle class="shape fillable" cx="200" cy="200" r="8" fill="var(--steelfill)" stroke="var(--ink)" stroke-width="2"/>
+    <g class="badge"><circle cx="200" cy="232" r="10"/><text x="200" y="232">1</text></g></g>
+  <g class="part" data-part="16"><line class="dim shape" x1="200" y1="200" x2="148" y2="116" /><text class="dimtxt" x="140" y="132">r₂</text>
+    <g class="badge"><circle cx="164" cy="140" r="10"/><text x="164" y="140">16</text></g></g>
+  <g class="part" data-part="17"><line class="dim shape" x1="200" y1="200" x2="266" y2="94" stroke-dasharray="4 3"/><text class="dimtxt" x="268" y="92">r₃</text>
+    <g class="badge"><circle cx="236" cy="132" r="10"/><text x="236" y="132">17</text></g></g>
+  <g class="part" data-part="18"><rect class="shape fillable" x="328" y="330" width="42" height="50" fill="none" stroke="none"/>
+    <g class="badge"><circle cx="394" cy="300" r="10"/><text x="394" y="300">18</text></g>
+    <text class="lbl" x="347" y="396" text-anchor="middle">outlet</text></g>
+  <circle id="ringA" fill="none" stroke="var(--accent)" stroke-width="2" cx="200" cy="200" r="10" opacity="0"/>
+  <g id="partsA"></g>
+  <text class="lbl" x="12" y="388">Impeller turns clockwise</text>
+</svg>
+      </div>
+    </div>
+    <div class="legend"><span>Gas colour = static pressure</span><span class="ramp"></span><span>low to high. Dot speed = gas speed.</span></div>
+    <div class="probe">
+      <label for="probe">Follow the gas</label>
+      <input id="probe" type="range" min="0" max="100" value="8" aria-label="Position of the probe along the flow path">
+      <div class="bars">
+        <div class="bar p"><b>Static pressure</b><div class="track"><div class="fill" id="bp"></div></div></div>
+        <div class="bar v"><b>Gas velocity</b><div class="track"><div class="fill" id="bv"></div></div></div>
+        <div class="bar t"><b>Stagnation pressure</b><div class="track"><div class="fill" id="bt"></div></div></div>
+      </div>
+    </div>
+    <div class="ctrls">
+      <button class="btn primary" id="play">Pause flow</button>
+      <button class="btn" id="prev">Previous step</button>
+      <button class="btn" id="next">Next step</button>
+    </div>
+    <div class="note">Bars are qualitative (rise and fall are correct, magnitudes are for illustration). Stagnation pressure rises only in the impeller and falls slightly after it.</div>
+  </div>
+
+  <div class="side">
+    <div class="card info" id="info" aria-live="polite"></div>
+    <div class="card chips" id="chips"><h3>Parts</h3></div>
+  </div>
+</div>
+
+<div class="card tour">
+  <h3 id="tourTitle"></h3>
+  <div class="steps" id="steps"></div>
+  <p class="tourtxt" id="tourTxt"></p>
+</div>
+</div>
+
+<script>
+(function(){
+var PARTS={
+1:["Driving shaft","Carries torque from the driver (a turbine in a turbocharger, or a motor or engine) to the impeller. Everything that rotates is on this shaft.","Shaft power = mass flow x work done per kg, W.D. = u₂Vᵥ₂/g_c."],
+2:["Impeller disc (hub)","The back plate that carries the vanes and passes the torque to them. It sees the highest centrifugal stress, and that stress is what limits the tip speed u₂.","Pressure ratio rises with u₂², so tip speed is capped by disc stress."],
+3:["Impeller blades (vanes)","The vanes push the gas round. They turn the flow from axial to radial and give it whirl Vᵥ₂. This is where all the work is added.","W.D. = (u₂Vᵥ₂ − u₁Vᵥ₁)/g_c. Backward, radial or forward vanes change Vᵥ₂ (slides 30-31)."],
+4:["Diffuser blades (diffuser)","A ring of fixed passages (or a plain annular gap) after the impeller. It slows the gas from V₂ to V₃ and turns the kinetic energy into static pressure. No work is done here.","h₀₂ = h₀₃. Vaneless: r₂Vᵥ₂ = r₃Vᵥ₃ and V₃/V₂ = r₂/r₃ (slides 46-48)."],
+5:["Collection chamber (volute)","A spiral casing that gathers the gas from the whole circumference and leads it to the outlet. Its area grows around the spiral and it diffuses the gas a little more.","Slide 7: the volute collects and diffuses further."],
+6:["Casing","The stationary housing around the impeller, diffuser and volute. It carries the pressure load and keeps a small tip clearance over the vanes. Leakage across that clearance is one of the losses.","Tip-clearance leakage: slide 55."],
+7:["Inducer section","The axial-entry part of each vane. Its roots are bent so the relative flow meets the vane without shock. It handles the highest relative velocity.","Vane twist from root to tip: slide 25 (Fig. 4.4)."],
+8:["Radial-blade impeller","The vaned wheel as seen from the front. Gas enters at the centre and leaves at the rim. Here the vanes are drawn as a bladed wheel turning clockwise.","Exit triangle and slip: slides 10-12, 34-38."],
+9:["Shroud","The outer cover over the vanes in a shrouded (closed) impeller. It closes the passage and cuts leakage. In an open impeller there is no shroud and the casing does that job.","Passage width b₂ from continuity (slides 49-50)."],
+10:["Impeller eye","The inlet opening of the impeller, where the gas enters axially. The velocity triangle here has Vᵥ₁ = 0 when there is no prewhirl.","Tan β₁ = V_f1/u₁. Eye size sets the inlet Mach number (slides 24-29)."],
+11:["Accelerating nozzle","A converging bell-mouth ahead of the eye. It makes the flow uniform and speeds it up so the gas enters the vanes smoothly. Static pressure drops a little here.","Part of the inlet design; see also the eye Mach number (slide 24)."],
+12:["Inlet guide vanes (IGV)","Fixed vanes in the inlet that turn the gas before the eye (prewhirl). Prewhirl lowers the relative velocity at the eye tip and keeps the relative Mach number below one.","W.D. = (u₂Vᵥ₂ − u₁Vᵥ₁)/g_c: prewhirl lowers the work (slides 43-45)."],
+13:["Hub radius r_h","The radius of the hub at the eye (the eye root). The blade speed uₕ = πdₕN/60 is lowest here, so the inlet blade angle is largest.","tan β₁,root = V_f1/uₕ (slide 25)."],
+14:["Mean radius r_m","The mean radius of the eye annulus, used for a mean-line design and the mean velocity triangle.","Between r_h and r_t."],
+15:["Eye tip radius r_t = r₁","The outer radius of the eye. Blade speed u₁ and the relative velocity V_r1 are the largest here, so this is where shocks start first.","V_r1² = u₁² + V_f1². Optimum d_t in slides 28-29."],
+16:["Impeller exit radius r₂","The tip radius of the impeller. The tip speed u₂ = πd₂N/60 sets the work and so the pressure ratio.","p_R0 = [1 + η σφ u₂²/(g_c c_p T₀₁)]^(γ/(γ−1)) (slide 42)."],
+17:["Diffuser exit radius r₃","The outer radius of the diffuser. The larger r₃/r₂, the more the gas slows, but the longer the flow path and the friction.","V₃/V₂ = r₂/r₃ for vaneless flow (slide 48)."],
+18:["Outlet","The delivery pipe leaving the volute. Static pressure and stagnation pressure are at their highest here.","p₀₃ is slightly below p₀₂: the diffuser loss."]
+};
+var STEPS=[
+ {t:"1  Inlet pipe and guide vanes",s:.05,parts:[12],view:"b",txt:"Air arrives along the axis. Inlet guide vanes (12) may give it prewhirl. Pressure is low and the speed is modest."},
+ {t:"2  Nozzle and eye",s:.19,parts:[11,10,15,13,14],view:"b",txt:"The accelerating nozzle (11) speeds up the gas and feeds it into the eye (10). The eye is described by the hub, mean and tip radii (13, 14, 15). Static pressure dips slightly because the gas is accelerating."},
+ {t:"3  Inside the impeller",s:.4,parts:[7,3,9,2,8],view:"a",txt:"The vanes (3), carried by the disc (2) and covered by the shroud (9), throw the gas outwards. Starting at the inducer (7), the flow turns from axial to radial. Both stagnation pressure and static pressure climb quickly. This is the only place where work is added."},
+ {t:"4  Impeller exit",s:.58,parts:[16,8],view:"a",txt:"At radius r₂ (16) the gas leaves at its highest absolute velocity. About half of the energy given by the vanes is now kinetic energy that is still to be converted."},
+ {t:"5  Diffuser",s:.66,parts:[4,17],view:"b",txt:"In the diffuser (4), out to radius r₃ (17), the gas slows down and the static pressure rises. There is no work here, so the stagnation enthalpy stays the same, and friction lowers the stagnation pressure slightly."},
+ {t:"6  Volute",s:.8,parts:[5],view:"a",txt:"The volute (5) collects the gas from all round the rim and diffuses it a little more while leading it to one outlet."},
+ {t:"7  Outlet",s:.97,parts:[18],view:"b",txt:"At the outlet (18) the static pressure is the highest in the machine and the velocity is low. This is the stage pressure ratio p_R0 = p₀₃/p₀₁."},
+ {t:"8  Shaft and casing",s:.5,parts:[1,6],view:"b",txt:"The shaft (1) brings in the power and the casing (6) holds the pressure. The small gap between vane tips and casing leaks a little gas back, which is a loss."}
+];
+/* qualitative gas properties along the flow path s in 0..1 */
+var KS=[0,.2,.3,.58,.72,.82,1];
+var KP=[.10,.10,.06,.46,.66,.70,.72];
+var KT=[.12,.12,.12,.80,.77,.75,.74];
+function interp(a,s){for(var i=1;i<KS.length;i++){if(s<=KS[i]){var f=(s-KS[i-1])/(KS[i]-KS[i-1]);return a[i-1]+(a[i]-a[i-1])*f}}return a[a.length-1]}
+function props(s){var p=interp(KP,s),t=interp(KT,s);var v=Math.sqrt(Math.max(t-p,0)/.34);return{p:p,t:t,v:Math.min(v,1)}}
+function mix(a,b,f){return Math.round(a+(b-a)*f)}
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function hex(c){c=c.replace('#','');return[parseInt(c.substr(0,2),16),parseInt(c.substr(2,2),16),parseInt(c.substr(4,2),16)]}
+var lo=[43,102,240],hi=[242,112,26];
+function refreshColors(){lo=hex(css('--flowlo'));hi=hex(css('--flowhi'))}
+function colorFor(p){var f=Math.min(1,Math.max(0,(p-.04)/.7));return 'rgb('+mix(lo[0],hi[0],f)+','+mix(lo[1],hi[1],f)+','+mix(lo[2],hi[2],f)+')'}
+var NS='http://www.w3.org/2000/svg';
+function mk(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);parent.appendChild(e);return e}
+function bez(p0,p1,p2,t){var u=1-t;return[u*u*p0[0]+2*u*t*p1[0]+t*t*p2[0],u*u*p0[1]+2*u*t*p1[1]+t*t*p2[1]]}
+function lerp(a,b,f){return a+(b-a)*f}
+
+/* ---------- side view path ---------- */
+var BR=[.2,.58,.72,.82];
+function posB(s,f){
+  var x,y;
+  if(s<BR[0]){var u=s/BR[0];x=lerp(26,150,u);y=lerp(lerp(350,325,u),lerp(226,250,u),f)}
+  else if(s<BR[1]){var u=(s-BR[0])/(BR[1]-BR[0]);var h=bez([150,325],[300,325],[330,110],u),sh=bez([150,250],[285,250],[300,110],u);x=lerp(h[0],sh[0],f);y=lerp(h[1],sh[1],f)}
+  else if(s<BR[2]){var u=(s-BR[1])/(BR[2]-BR[1]);x=lerp(330,300,f)*1+0;x=lerp(lerp(330,300,f),lerp(330,300,f),u);y=lerp(110,70,u)}
+  else if(s<BR[3]){var u=(s-BR[2])/(BR[3]-BR[2]);var rho=9+16*f;var ang=Math.PI/2*(1-u);x=315+rho*Math.cos(ang);y=40+rho*Math.sin(ang)}
+  else{var u=(s-BR[3])/(1-BR[3]);x=lerp(315+9+16*f,466,u);y=40}
+  return[x,y]
+}
+var NB=84,pB=[];
+var gB=document.getElementById('partsB');
+for(var i=0;i<NB;i++){pB.push({s:Math.random(),f:Math.random(),el:mk('circle',{r:3.1},gB)})}
+var probeB=document.getElementById('probeB');
+
+/* ---------- front view ---------- */
+var CX=200,CY=200;
+function Rv(th){return 132+34*(th/(2*Math.PI))}
+(function buildFront(){
+  var d='M328 380 L328 200 ';
+  for(var i=0;i<=120;i++){var th=2*Math.PI*i/120,r=Rv(th);d+='L'+(CX+r*Math.cos(th)).toFixed(1)+' '+(CY+r*Math.sin(th)).toFixed(1)+' '}
+  d+='L366 380 Z';
+  document.getElementById('voluteShape').setAttribute('d',d);
+  document.getElementById('casingRing').setAttribute('d','M328 380 L328 200');
+  var dv=document.getElementById('diffVanes');
+  for(var k=0;k<16;k++){var a=2*Math.PI*k/16,b=a+.45;mk('line',{x1:CX+101*Math.cos(a),y1:CY+101*Math.sin(a),x2:CX+125*Math.cos(b),y2:CY+125*Math.sin(b)},dv)}
+  var iv=document.getElementById('impVanes');
+  var gIv=mk('g',{id:'rot'},iv);
+  for(var k=0;k<14;k++){var a0=2*Math.PI*k/14,pts='';for(var j=0;j<=14;j++){var u=j/14,r=26+70*u,a=a0-.95*Math.pow(u,1.3);pts+=(j?'L':'M')+(CX+r*Math.cos(a)).toFixed(1)+' '+(CY+r*Math.sin(a)).toFixed(1)+' '}
+    mk('path',{d:pts},gIv)}
+})();
+var NA=110,pA=[],gA=document.getElementById('partsA');
+function resetA(p,init){p.stage=0;p.u=init?Math.random():0;p.th0=Math.random()*Math.PI*2;p.vy=0}
+for(var i=0;i<NA;i++){var q={el:mk('circle',{r:3},gA)};resetA(q,true);if(Math.random()<.6){q.stage=2;q.u=Math.random()*(2*Math.PI-q.th0)}pA.push(q)}
+function posA(p,dt){
+  var s,x,y;
+  if(p.stage===0){var v=props(.2+.38*p.u).v;p.u+=dt*(.12+.35*v)*.9;if(p.u>=1){p.stage=1;p.u=0}
+    var r=24+71*p.u,th=p.th0+1.25*Math.pow(p.u,1.4);s=.2+.38*Math.min(p.u,1);x=CX+r*Math.cos(th);y=CY+r*Math.sin(th);p.thEnd=th}
+  else if(p.stage===1){p.u+=dt*.5;if(p.u>=1){p.stage=2;p.th=((p.thEnd%(2*Math.PI))+2*Math.PI)%(2*Math.PI);p.u=0}
+    var th=p.thEnd+.5*Math.min(p.u,1),r=95+32*Math.min(p.u,1);s=.58+.14*Math.min(p.u,1);x=CX+r*Math.cos(th);y=CY+r*Math.sin(th);p.thEnd2=th}
+  else if(p.stage===2){
+    if(p.th===undefined){p.th=((p.th0%(2*Math.PI))+2*Math.PI)%(2*Math.PI)}
+    p.th+=dt*1.15;if(p.th>=2*Math.PI){p.stage=3;p.vy=0}
+    var th=Math.min(p.th,2*Math.PI),r=127+.5*(Rv(th)-127);s=.72+.18*(th/(2*Math.PI));x=CX+r*Math.cos(th);y=CY+r*Math.sin(th)}
+  else{p.vy+=dt*85;var yy=CY+p.vy;x=347;y=yy;s=.9+.1*Math.min(1,p.vy/180);if(yy>388){resetA(p,false);p.th=undefined;return posA(p,0)}}
+  p.s=s;return[x,y]
+}
+
+/* ---------- state, UI ---------- */
+var sel=null,tourIdx=0,playing=true,reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(reduce)playing=false;
+var info=document.getElementById('info');
+function sub(t){return t.replace(/_([A-Za-z0-9]+)/g,'<sub>$1</sub>')}
+function selectPart(n){
+  sel=n;
+  document.querySelectorAll('.part').forEach(function(e){e.classList.toggle('on',e.getAttribute('data-part')==n||(Array.isArray(n)&&n.indexOf(+e.getAttribute('data-part'))>-1))});
+  document.querySelectorAll('.chip').forEach(function(e){e.classList.toggle('on',e.getAttribute('data-part')==n||(Array.isArray(n)&&n.indexOf(+e.getAttribute('data-part'))>-1))});
+}
+function showInfo(n){
+  var d=PARTS[n];
+  info.innerHTML='<div class="num">PART '+n+'</div><h2>'+sub(d[0])+'</h2><p>'+sub(d[1])+'</p><div class="theory"><b>Link to the theory.</b> '+sub(d[2])+'</div>';
+}
+function clickPart(n){selectPart(n);showInfo(n);document.querySelectorAll('.step').forEach(function(e){e.classList.remove('on')});tourIdx=-1}
+document.querySelectorAll('.part').forEach(function(e){e.addEventListener('click',function(){clickPart(+e.getAttribute('data-part'))})});
+var chips=document.getElementById('chips');
+for(var n=1;n<=18;n++){(function(n){var b=document.createElement('button');b.className='chip';b.setAttribute('data-part',n);b.innerHTML='<i>'+n+'</i><span>'+sub(PARTS[n][0])+'</span>';b.onclick=function(){clickPart(n)};chips.appendChild(b)})(n)}
+var stepsEl=document.getElementById('steps');
+STEPS.forEach(function(s,i){var b=document.createElement('button');b.className='step';b.textContent=s.t.split('  ')[0];b.title=s.t.split('  ')[1];b.onclick=function(){goStep(i)};stepsEl.appendChild(b)});
+var probe=document.getElementById('probe');
+function setProbe(s){probe.value=Math.round(s*100);updateProbe()}
+function updateProbe(){
+  var s=probe.value/100,pr=props(s);
+  document.getElementById('bp').style.width=(pr.p*100/.8)+'%';
+  document.getElementById('bv').style.width=(pr.v*100)+'%';
+  document.getElementById('bt').style.width=(pr.t*100/.8)+'%';
+  var p=posB(Math.min(s,.999),.5);probeB.setAttribute('cx',p[0]);probeB.setAttribute('cy',p[1]);
+  var ring=document.getElementById('ringA');
+  var r=null;
+  if(s<.2)r=null;else if(s<.58)r=26+(s-.2)/.38*69;else if(s<.72)r=95+(s-.58)/.14*32;
+  if(r){ring.setAttribute('r',r);ring.setAttribute('opacity','1')}else ring.setAttribute('opacity','0');
+}
+probe.addEventListener('input',function(){updateProbe()});
+function setView(v){
+  document.getElementById('view-b').hidden=v!=='b';document.getElementById('view-a').hidden=v!=='a';
+  document.getElementById('tab-b').setAttribute('aria-selected',v==='b');document.getElementById('tab-a').setAttribute('aria-selected',v==='a');
+}
+document.getElementById('tab-b').onclick=function(){setView('b')};
+document.getElementById('tab-a').onclick=function(){setView('a')};
+function goStep(i){
+  tourIdx=(i+STEPS.length)%STEPS.length;var s=STEPS[tourIdx];
+  document.querySelectorAll('.step').forEach(function(e,k){e.classList.toggle('on',k===tourIdx)});
+  setView(s.view);setProbe(s.s);selectPart(s.parts);
+  document.getElementById('tourTitle').textContent=s.t;
+  document.getElementById('tourTxt').innerHTML=sub(s.txt);
+  showInfo(s.parts[0]);
+}
+document.getElementById('next').onclick=function(){goStep((tourIdx<0?0:tourIdx+1))};
+document.getElementById('prev').onclick=function(){goStep((tourIdx<0?0:tourIdx-1))};
+var playBtn=document.getElementById('play');
+function setPlay(v){playing=v;playBtn.textContent=v?'Pause flow':'Play flow';playBtn.classList.toggle('primary',v)}
+playBtn.onclick=function(){setPlay(!playing)};
+setPlay(playing);
+
+/* ---------- animation loop ---------- */
+var last=performance.now(),rot=0;
+function draw(dt){
+  for(var i=0;i<NB;i++){var p=pB[i];var pr=props(p.s);
+    p.s+=dt*(.045+.16*pr.v)*(1);if(p.s>=1){p.s=0;p.f=Math.random()}
+    var pos=posB(p.s,p.f);p.el.setAttribute('cx',pos[0].toFixed(1));p.el.setAttribute('cy',pos[1].toFixed(1));p.el.setAttribute('fill',colorFor(props(p.s).p));
+  }
+  rot+=dt*70;document.getElementById('rot').setAttribute('transform','rotate('+rot%360+' '+CX+' '+CY+')');
+  for(var j=0;j<NA;j++){var q=pA[j];var pos=posA(q,dt);q.el.setAttribute('cx',pos[0].toFixed(1));q.el.setAttribute('cy',pos[1].toFixed(1));q.el.setAttribute('fill',colorFor(props(q.s||0).p))}
+}
+function frame(now){var dt=Math.min(.05,(now-last)/1000);last=now;if(playing)draw(dt);requestAnimationFrame(frame)}
+refreshColors();
+if(window.matchMedia){var mq=window.matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',refreshColors)}
+new MutationObserver(refreshColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+draw(.016);
+goStep(0);
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

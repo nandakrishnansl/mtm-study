@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<!--
+  Turbograph — Velocity Triangle Drafting Table
+  Version: 2.0.0
+  Changelog from v1.0.0: rebuilt grid/endpoint snapping (findSnapTarget),
+  locked-vector protection (Tutorial/Construct output), fixed undo on
+  handle-drag, fixed PNG export. See in-app "About" (top-right ? icon)
+  for the full feature summary.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Turbograph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --graphite-900:#14181D;
+  --graphite-850:#181E25;
+  --graphite-800:#1C232B;
+  --graphite-750:#212A33;
+  --graphite-700:#2A333D;
+  --graphite-600:#3A4552;
+  --graphite-500:#4E5B69;
+  --vellum:#F2EEDE;
+  --vellum-2:#EAE4CE;
+  --vellum-line:#D8CEA8;
+  --vellum-line-major:#C6B98A;
+  --brass:#C89B3C;
+  --brass-bright:#E3B754;
+  --brass-dim:#8C7133;
+  --steam:#3E7CB1;
+  --steam-bright:#5FA0D6;
+  --forge:#BD5334;
+  --forge-bright:#DD6E4C;
+  --patina:#3E8574;
+  --patina-bright:#57A692;
+  --patina-2:#2E6D8E;
+  --ink:#ECE7D8;
+  --ink-dim:#93A0AC;
+  --ink-dimmer:#68737E;
+  --ink-canvas:#22262A;
+  --danger:#C1502E;
+  --radius-sm:4px;
+  --radius-md:7px;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--graphite-900);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--brass-dim);color:var(--ink);}
+button{font-family:inherit;}
+input,select{font-family:inherit;}
+
+/* ---------- App shell ---------- */
+#app{
+  display:grid;
+  grid-template-columns:60px 1fr 322px;
+  grid-template-rows:64px 1fr 96px;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "rail   canvas panel"
+    "rail   bottom panel";
+  height:100vh;
+  width:100vw;
+}
+@media (max-width:900px){
+  #app{
+    grid-template-columns:52px 1fr;
+    grid-template-rows:auto 1fr 88px auto;
+    grid-template-areas:
+      "topbar topbar"
+      "rail   canvas"
+      "rail   bottom"
+      "panel  panel";
+  }
+  #panel{max-height:38vh;overflow-y:auto;}
+}
+
+/* ---------- Top bar ---------- */
+#topbar{
+  grid-area:topbar;
+  background:linear-gradient(180deg,var(--graphite-850),var(--graphite-900));
+  border-bottom:1px solid var(--graphite-700);
+  display:flex;
+  align-items:center;
+  gap:22px;
+  padding:0 16px;
+  min-width:0;
+}
+.brandmark{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-shrink:0;
+}
+.brandmark svg{width:26px;height:26px;flex-shrink:0;}
+.brandmark .word{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:16.5px;
+  letter-spacing:0.5px;
+  color:var(--ink);
+  line-height:1;
+}
+.brandmark .sub{
+  font-size:10px;
+  color:var(--ink-dimmer);
+  letter-spacing:0.4px;
+  margin-top:2px;
+  display:block;
+  font-weight:500;
+}
+.tabgroup{
+  display:flex;
+  align-items:center;
+  gap:2px;
+  background:var(--graphite-800);
+  border:1px solid var(--graphite-700);
+  border-radius:8px;
+  padding:3px;
+  flex-shrink:0;
+}
+.tabgroup.wrap{flex-wrap:wrap;}
+.tab-btn{
+  appearance:none;
+  border:none;
+  background:transparent;
+  color:var(--ink-dim);
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:12.5px;
+  padding:7px 12px;
+  border-radius:6px;
+  cursor:pointer;
+  letter-spacing:0.2px;
+  white-space:nowrap;
+  transition:background .12s ease,color .12s ease;
+}
+.tab-btn:hover{color:var(--ink);background:var(--graphite-700);}
+.tab-btn.active{background:var(--brass);color:#211a0c;}
+.tab-btn .stagename{font-size:9.5px;display:block;font-weight:500;opacity:.75;letter-spacing:.3px;margin-top:1px;}
+#topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.icon-btn{
+  width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--graphite-800);
+  border:1px solid var(--graphite-700);
+  border-radius:7px;
+  color:var(--ink-dim);
+  cursor:pointer;
+  transition:all .12s ease;
+}
+.icon-btn:hover{color:var(--ink);border-color:var(--graphite-600);background:var(--graphite-750);}
+.icon-btn svg{width:17px;height:17px;}
+
+/* ---------- Left tool rail ---------- */
+#rail{
+  grid-area:rail;
+  background:var(--graphite-850);
+  border-right:1px solid var(--graphite-700);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:10px 0;
+  gap:4px;
+  overflow-y:auto;
+}
+.rail-btn{
+  width:42px;height:42px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:8px;
+  color:var(--ink-dim);
+  cursor:pointer;
+  position:relative;
+  transition:all .12s ease;
+  flex-shrink:0;
+}
+.rail-btn svg{width:20px;height:20px;pointer-events:none;}
+.rail-btn:hover{background:var(--graphite-750);color:var(--ink);}
+.rail-btn.active{background:var(--brass);color:#211a0c;border-color:var(--brass-bright);}
+.rail-btn.toggled{color:var(--patina-bright);}
+.rail-btn.toggled.on{background:var(--graphite-700);color:var(--patina-bright);border-color:var(--patina);}
+.rail-div{width:26px;height:1px;background:var(--graphite-700);margin:6px 0;flex-shrink:0;}
+.rail-btn .tip{
+  position:absolute;
+  left:52px;
+  top:50%;
+  transform:translateY(-50%);
+  background:var(--graphite-750);
+  border:1px solid var(--graphite-600);
+  color:var(--ink);
+  font-size:11.5px;
+  font-weight:500;
+  padding:5px 9px;
+  border-radius:6px;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .1s ease;
+  z-index:50;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+.rail-btn:hover .tip{opacity:1;}
+
+/* ---------- Canvas area ---------- */
+#canvas-wrap{
+  grid-area:canvas;
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 30% 0%, #262f39 0%, var(--graphite-900) 55%);
+}
+#whiteboard-frame{
+  position:absolute;
+  inset:14px;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 10px 34px rgba(0,0,0,.45), 0 0 0 1px var(--graphite-700);
+  background:var(--vellum);
+}
+#svg-canvas{
+  width:100%;
+  height:100%;
+  display:block;
+  touch-action:none;
+  cursor:crosshair;
+}
+#svg-canvas.tool-select{cursor:default;}
+#svg-canvas.tool-pan{cursor:grab;}
+#svg-canvas.tool-pan.panning{cursor:grabbing;}
+#svg-canvas.tool-erase{cursor:not-allowed;}
+
+.canvas-badge{
+  position:absolute;
+  top:12px;
+  left:12px;
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--ink-canvas);
+  opacity:.55;
+  letter-spacing:.3px;
+  pointer-events:none;
+  user-select:none;
+}
+.canvas-hint{
+  position:absolute;
+  top:12px;
+  right:14px;
+  font-family:var(--font-body);
+  font-size:12px;
+  font-weight:500;
+  color:var(--ink-canvas);
+  background:rgba(242,238,222,.85);
+  border:1px solid var(--vellum-line-major);
+  padding:6px 11px;
+  border-radius:6px;
+  max-width:340px;
+  text-align:right;
+  pointer-events:none;
+  line-height:1.4;
+}
+
+/* ---------- Bottom bar ---------- */
+#bottom{
+  grid-area:bottom;
+  background:var(--graphite-850);
+  border-top:1px solid var(--graphite-700);
+  display:flex;
+  align-items:center;
+  gap:22px;
+  padding:0 18px;
+  overflow-x:auto;
+}
+.bottom-section{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+}
+.bottom-divider{
+  width:1px;
+  align-self:stretch;
+  margin:16px 0;
+  background:var(--graphite-700);
+  flex-shrink:0;
+}
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.field label{
+  font-size:9.5px;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  color:var(--ink-dimmer);
+  font-weight:600;
+}
+.field input[type=number],.field input[type=text],.field select{
+  background:var(--graphite-800);
+  border:1px solid var(--graphite-600);
+  color:var(--ink);
+  border-radius:6px;
+  padding:6px 8px;
+  font-size:12.5px;
+  font-family:var(--font-mono);
+  width:88px;
+  outline:none;
+}
+.field select{font-family:var(--font-body);width:auto;min-width:110px;}
+.field input:focus,.field select:focus{border-color:var(--brass);}
+.btn{
+  appearance:none;
+  border:1px solid var(--graphite-600);
+  background:var(--graphite-750);
+  color:var(--ink);
+  font-weight:600;
+  font-size:12.5px;
+  padding:8px 14px;
+  border-radius:7px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:all .12s ease;
+  font-family:var(--font-body);
+}
+.btn:hover{background:var(--graphite-700);border-color:var(--graphite-500);}
+.btn.primary{background:var(--brass);border-color:var(--brass-bright);color:#211a0c;}
+.btn.primary:hover{background:var(--brass-bright);}
+.btn.small{padding:6px 10px;font-size:11.5px;}
+.btn.ghost{background:transparent;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.readout{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--ink-dim);
+  display:flex;
+  gap:14px;
+}
+.readout b{color:var(--ink);font-weight:600;}
+.cursor-readout{
+  display:inline-block;
+  width:132px;              /* fixed regardless of digit count, so nothing to the right shifts */
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+}
+.hint-text{font-size:11.5px;color:var(--ink-dimmer);max-width:260px;line-height:1.4;}
+
+/* ---------- Right panel ---------- */
+#panel{
+  grid-area:panel;
+  background:var(--graphite-850);
+  border-left:1px solid var(--graphite-700);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+#panel-tabs{
+  display:flex;
+  border-bottom:1px solid var(--graphite-700);
+  flex-shrink:0;
+}
+.ptab{
+  flex:1;
+  background:transparent;
+  border:none;
+  color:var(--ink-dimmer);
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:11.5px;
+  letter-spacing:.3px;
+  padding:12px 4px 10px;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  text-transform:uppercase;
+}
+.ptab:hover{color:var(--ink-dim);}
+.ptab.active{color:var(--brass-bright);border-bottom-color:var(--brass);}
+#panel-body{
+  flex:1;
+  overflow-y:auto;
+  padding:16px;
+}
+#panel-body h3{
+  font-family:var(--font-display);
+  font-size:14px;
+  font-weight:600;
+  color:var(--ink);
+  margin:0 0 8px;
+  letter-spacing:.2px;
+}
+#panel-body p{
+  font-size:12.5px;
+  line-height:1.55;
+  color:var(--ink-dim);
+  margin:0 0 12px;
+}
+.legend-row{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:7px 0;
+  border-bottom:1px solid var(--graphite-800);
+}
+.legend-row:last-child{border-bottom:none;}
+.legend-swatch{
+  width:22px;height:3px;
+  border-radius:2px;
+  margin-top:6px;
+  flex-shrink:0;
+}
+.legend-swatch.dashed{
+  background-image:linear-gradient(90deg, currentColor 60%, transparent 0%);
+  background-size:7px 3px;
+  background-repeat:repeat-x;
+  background-color:transparent !important;
+  height:3px;
+}
+.legend-txt b{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--ink);
+  display:block;
+}
+.legend-txt span{
+  font-size:11px;
+  color:var(--ink-dimmer);
+  line-height:1.35;
+}
+.card{
+  background:var(--graphite-800);
+  border:1px solid var(--graphite-700);
+  border-radius:9px;
+  padding:13px 14px;
+  margin-bottom:12px;
+}
+.card h4{
+  margin:0 0 9px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--brass-bright);
+  font-weight:700;
+}
+.kv-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  padding:4px 0;
+  font-size:12.5px;
+}
+.kv-row .k{color:var(--ink-dim);}
+.kv-row .v{font-family:var(--font-mono);color:var(--ink);font-weight:600;}
+.stepper{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:10px 0 4px;
+}
+.step-dots{display:flex;gap:5px;flex-wrap:wrap;}
+.step-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--graphite-600);
+  cursor:pointer;
+}
+.step-dot.active{background:var(--brass);width:18px;border-radius:4px;}
+.step-dot.done{background:var(--patina);}
+.construct-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-bottom:10px;
+}
+.construct-grid .field{width:100%;}
+.construct-grid .field input,.construct-grid .field select{width:100%;}
+.full-w{grid-column:1/-1;}
+.checkline{
+  display:flex;align-items:center;gap:7px;
+  font-size:12px;color:var(--ink-dim);
+  grid-column:1/-1;
+  padding:2px 0;
+}
+.checkline input{accent-color:var(--brass);}
+.stage-block{
+  border-left:2px solid var(--brass-dim);
+  padding-left:10px;
+  margin-bottom:14px;
+}
+.stage-block h5{
+  font-size:11px;color:var(--brass-bright);
+  text-transform:uppercase;letter-spacing:.4px;
+  margin:0 0 8px;
+}
+.empty-note{
+  font-size:12px;color:var(--ink-dimmer);
+  text-align:center;padding:30px 10px;
+  line-height:1.6;
+}
+.small-note{font-size:11px;color:var(--ink-dimmer);line-height:1.5;margin-top:6px;}
+a.textlink{color:var(--steam-bright);}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:var(--graphite-600);border-radius:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+select option{background:var(--graphite-800);color:var(--ink);}
+
+/* ---------- About modal ---------- */
+.about-overlay{
+  position:fixed;inset:0;
+  background:rgba(10,13,16,.6);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;
+  padding:20px;
+}
+.about-overlay[hidden]{display:none;}
+.about-card{
+  position:relative;
+  background:var(--graphite-800);
+  border:1px solid var(--graphite-600);
+  border-radius:12px;
+  max-width:480px;
+  width:100%;
+  padding:26px 26px 22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  max-height:82vh;
+  overflow-y:auto;
+}
+.about-card h3{font-family:var(--font-display);font-size:17px;color:var(--brass-bright);}
+.about-card p{font-size:12.8px;line-height:1.6;color:var(--ink-dim);margin:0 0 12px;}
+.about-card b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <div id="topbar">
+    <div class="brandmark">
+      <svg viewBox="0 0 26 26" fill="none">
+        <path d="M3 21L13 5L23 21" stroke="var(--brass)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M3 21H23" stroke="var(--steam)" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M13 5L13 21" stroke="var(--forge)" stroke-width="1.5" stroke-dasharray="2.4 2.4" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <span class="word">TURBOGRAPH</span>
+        <span class="sub">VELOCITY&nbsp;TRIANGLE&nbsp;DRAFTING&nbsp;TABLE</span>
+      </div>
+    </div>
+
+    <div class="tabgroup" id="turbine-tabs" role="tablist" aria-label="Turbine type"></div>
+    <div class="tabgroup" id="mode-tabs" role="tablist" aria-label="Mode"></div>
+
+    <div id="topbar-right">
+      <button class="icon-btn" id="btn-export" title="Export whiteboard as PNG">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 12l5 5 5-5"/><path d="M4 21h16"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-help" title="About this tool">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.85.8c0 1.7-2.35 1.9-2.35 3.7"/><circle cx="12" cy="16.7" r="0.4" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ LEFT TOOL RAIL ============ -->
+  <div id="rail">
+    <button class="rail-btn" data-tool="select" title="Select"><span class="tip">Select &amp; inspect</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l5.6 15.5 2-6.4 6.4-2L5 3z"/></svg>
+    </button>
+    <button class="rail-btn" data-tool="draw" title="Draw vector"><span class="tip">Draw vector (drag or type values)</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L18 6"/><path d="M12 6h6v6"/><circle cx="4" cy="20" r="1.6" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button class="rail-btn" data-tool="measure-length" title="Measure length"><span class="tip">Measure length between two points</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3"/><path d="M6 14l2 2"/><path d="M9.5 10.5l2 2"/><path d="M13 7l2 2"/><path d="M15 3l6 6-4 4-6-6z"/></svg>
+    </button>
+    <button class="rail-btn" data-tool="measure-angle" title="Measure angle"><span class="tip">Measure angle between two vectors</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M4 20L18 7"/><path d="M9 20a5 5 0 0 1 1.2-3.6" /></svg>
+    </button>
+    <button class="rail-btn" data-tool="pan" title="Pan canvas"><span class="tip">Pan the whiteboard</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v9M9 6.5L12 4l3 2.5"/><path d="M5 13c0-1 .8-1.8 1.8-1.8S8.5 12 8.5 13v3"/><path d="M8.5 12.6c0-1 .8-1.7 1.7-1.7s1.8.7 1.8 1.7v3.4"/><path d="M12 12.6c0-1 .8-1.7 1.8-1.7S15.5 11.6 15.5 12.6v4"/><path d="M15.5 13.3c0-.9.7-1.6 1.6-1.6s1.7.7 1.7 1.6V17c0 2.8-2 5-5.3 5h-1.4C9.4 22 8 21 7 19.6l-2.8-4c-.5-.8-.3-1.6.4-2.1.7-.4 1.6-.3 2.2.4L8.5 16"/></svg>
+    </button>
+    <button class="rail-btn" data-tool="erase" title="Erase"><span class="tip">Delete a vector</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13l-6.5 6.5a2 2 0 0 1-2.8 0L4 14.8a2 2 0 0 1 0-2.8L13 3"/><path d="M8.5 20h11"/></svg>
+    </button>
+
+    <div class="rail-div"></div>
+
+    <button class="rail-btn toggled on" id="toggle-grid" title="Grid"><span class="tip">Toggle grid</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" /><rect x="3" y="3" width="18" height="18" rx="1.5"/></svg>
+    </button>
+    <button class="rail-btn toggled on" id="toggle-snap" title="Snap"><span class="tip">Toggle snap (grid points + vector endpoints)</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v6a4 4 0 0 0 8 0V3"/><path d="M8 21v-6a4 4 0 0 1 8 0v6"/></svg>
+    </button>
+    <button class="rail-btn toggled" id="toggle-orientation" title="Flip orientation"><span class="tip">Flip triangle orientation (up / down)</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l5-5 5 5"/><path d="M12 3v8"/><path d="M17 16l-5 5-5-5"/><path d="M12 13v8"/></svg>
+    </button>
+
+    <div class="rail-div"></div>
+
+    <button class="rail-btn" id="btn-undo" title="Undo"><span class="tip">Undo</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8H4V5"/><path d="M4 8a8 8 0 1 1 2.3 6.2"/></svg>
+    </button>
+    <button class="rail-btn" id="btn-redo" title="Redo"><span class="tip">Redo</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h3V5"/><path d="M20 8a8 8 0 1 0-2.3 6.2"/></svg>
+    </button>
+    <button class="rail-btn" id="btn-clear" title="Clear whiteboard"><span class="tip">Clear whiteboard</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ CANVAS ============ -->
+  <div id="canvas-wrap">
+    <div id="whiteboard-frame">
+      <svg id="svg-canvas" class="tool-draw"></svg>
+      <div class="canvas-badge" id="scale-badge">1 grid = 50 m/s</div>
+      <div class="canvas-hint" id="canvas-hint">Pick a turbine and mode above, or just start drawing.</div>
+    </div>
+  </div>
+
+  <!-- ============ BOTTOM BAR ============ -->
+  <div id="bottom"></div>
+
+  <!-- ============ RIGHT PANEL ============ -->
+  <div id="panel">
+    <div id="panel-tabs">
+      <button class="ptab active" data-ptab="guide">Guide</button>
+      <button class="ptab" data-ptab="legend">Legend</button>
+      <button class="ptab" data-ptab="results">Results</button>
+    </div>
+    <div id="panel-body"></div>
+  </div>
+
+  <!-- ============ ABOUT MODAL ============ -->
+  <div id="about-overlay" class="about-overlay" hidden>
+    <div class="about-card">
+      <button class="icon-btn" id="about-close" style="position:absolute;top:14px;right:14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+      <h3 style="margin-top:0;">About Turbograph <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-dimmer);font-weight:500;">v3.0.0</span></h3>
+      <p>A drafting table for the velocity triangles of steam-turbine stages &mdash; De Laval, Curtis, Rateau and Parsons &mdash; plus a free-form stage for anything in between.</p>
+      <p><b>Nomenclature</b> follows B.K. Venkanna's <i>Fundamentals of Turbomachinery</i>: U (blade speed), V/Vr (absolute / relative velocity), Vw/Vf (whirl / flow components), &alpha;/&beta; (absolute / relative angles to the tangential direction).</p>
+      <p><b>Colour key</b>: brass = U, blue = absolute velocity (V), red = relative velocity (Vr), teal = whirl component (Vw), violet = flow component (Vf).</p>
+      <p><b>Three modes</b>, top centre: <i>Free draw</i> &mdash; place any vector by dragging or typing exact length &amp; angle; <i>Tutorial</i> &mdash; a step-by-step build for the selected turbine; <i>Construct</i> &mdash; hand over U, the known angles and vectors, and the whole diagram is drawn and solved for you.</p>
+      <p><b>Snap</b> (left rail) locks wherever you release a drag onto the nearest grid intersection, or magnetically onto any existing vector's tail or tip when you release within reach of one — so triangles close up exactly, tip to tail. Diagrams built by Tutorial or Construct are locked to protect the solved geometry; select one and choose <i>Unlock to edit</i> if you want to nudge it by hand.</p>
+      <p><b>Flip orientation</b> (left rail, chevron icon) mirrors the whole diagram vertically — triangles pointing up from the baseline vs. down, matching whichever way your textbook or lecturer draws it. It's purely visual: labels, lengths, angles and every Results figure stay exactly as computed.</p>
+      <p style="margin-bottom:0;">Results (right panel) update live from whatever's actually on the sheet, in Free draw as much as Construct.</p>
+    </div>
+  </div>
+
+</div>
+<script>
+/* =========================================================================
+   TURBOGRAPH — constants: nomenclature, colour system, turbine definitions
+   Nomenclature follows B.K. Venkanna, "Fundamentals of Turbomachinery":
+     U        blade (peripheral) velocity
+     V1,V2    absolute velocity of steam at inlet / outlet of a moving row
+     Vr1,Vr2  velocity of steam relative to the moving blade, inlet/outlet
+     Vw1,Vw2  velocity of whirl (tangential component of absolute velocity)
+     Vf1,Vf2  velocity of flow (axial component of absolute velocity)
+     alpha1,2 angle of V1,V2 to the tangential (blade-motion) direction
+     beta1,2  angle of Vr1,Vr2 to the tangential direction
+   ========================================================================= */
+
+const COLORS = {
+  U: '#C89B3C',
+  V: '#3E7CB1',
+  Vr: '#BD5334',
+  Vw: '#3E8574',
+  Vf: '#7D5BA6',
+  construction: '#8A93A3',
+  selected: '#E3B754',
+  ok: '#57A692'
+};
+
+function kindOfLabel(label){
+  if(/^U/.test(label)) return 'U';
+  if(/^Vr/.test(label)) return 'Vr';
+  if(/^Vw/.test(label)) return 'Vw';
+  if(/^Vf/.test(label)) return 'Vf';
+  if(/^V/.test(label)) return 'V';
+  if(/^\u03b1/.test(label)) return 'V';
+  if(/^\u03b2/.test(label)) return 'Vr';
+  return 'construction';
+}
+function colorOfLabel(label){ return COLORS[kindOfLabel(label)] || COLORS.construction; }
+
+/* segment (row/stage) label set — i is 1-based */
+function segLabels(i){
+  const a = 2*i-1, b = 2*i;
+  return {
+    idx:i, a, b,
+    V_in:`V${a}`,  V_out:`V${b}`,
+    Vr_in:`Vr${a}`, Vr_out:`Vr${b}`,
+    Vw_in:`Vw${a}`, Vw_out:`Vw${b}`,
+    Vf_in:`Vf${a}`, Vf_out:`Vf${b}`,
+    a_in:`\u03b1${toSub(a)}`, a_out:`\u03b1${toSub(b)}`,
+    b_in:`\u03b2${toSub(a)}`, b_out:`\u03b2${toSub(b)}`,
+    a_in_plain:`alpha${a}`, a_out_plain:`alpha${b}`,
+    b_in_plain:`beta${a}`, b_out_plain:`beta${b}`,
+  };
+}
+const SUBS = {0:'\u2080',1:'\u2081',2:'\u2082',3:'\u2083',4:'\u2084',5:'\u2085',6:'\u2086',7:'\u2087',8:'\u2088',9:'\u2089'};
+function toSub(n){ return String(n).split('').map(d=>SUBS[d]||d).join(''); }
+
+/* =========================================================================
+   TURBINE DEFINITIONS
+   ========================================================================= */
+const TURBINES = {
+
+  delaval: {
+    key:'delaval', name:'De Laval', tag:'Single-stage impulse',
+    segMode:'fixed', segCount:1, chained:false,
+    blurb:"A single row of nozzles drops the steam to condenser pressure in one go and fires it at one row of moving blades. Because the whole enthalpy drop happens before the blade, the jet is very fast and the wheel must spin fast to keep the blade-speed-to-steam-speed ratio near its efficient value \u2014 De Laval's original wheels ran through reduction gearing.",
+    tutorialIntro:"You'll build one inlet/outlet velocity-triangle pair on a shared base line U. This is the construction every other stage on this bench is built from.",
+    steps(seg){ return [
+      {t:"Lay down the baseline",
+       d:`Draw <b>U</b> horizontally to scale \u2014 the blade's peripheral speed. Its tail is <b>O</b>, its head is <b>A</b>. Every other vector in this stage is built from this one line.`},
+      {t:`Draw the entering steam, ${seg.V_in}`,
+       d:`From <b>O</b>, draw <b>${seg.V_in}</b> at the nozzle angle <b>${seg.a_in}</b> to the baseline \u2014 this is the absolute velocity of the jet leaving the nozzle. Its tip is point <b>C</b>.`},
+      {t:`Find the relative velocity, ${seg.Vr_in}`,
+       d:`Join <b>A</b> to <b>C</b>. That segment is <b>${seg.Vr_in}</b> \u2014 how fast the steam is moving relative to the blade as it arrives. The angle it makes with the baseline is <b>${seg.b_in}</b>, the blade inlet angle (shape the blade edge to this angle for shock-free entry).`},
+      {t:"Choose the exit conditions",
+       d:`Pick the blade exit angle <b>${seg.b_out}</b> (a near-symmetrical blade has ${seg.b_out} \u2248 ${seg.b_in}) and a blade-velocity coefficient k = ${seg.Vr_out}/${seg.Vr_in} (k=1 is frictionless; real blades run 0.7\u20130.9).`},
+      {t:`Draw the leaving relative velocity, ${seg.Vr_out}`,
+       d:`From <b>A</b>, draw <b>${seg.Vr_out}</b> = k\u00d7${seg.Vr_in} at angle <b>${seg.b_out}</b>, curving back over the discharge side of the blade. Its tip is point <b>D</b>.`},
+      {t:`Close the triangle: ${seg.V_out}`,
+       d:`Join <b>O</b> to <b>D</b> \u2014 that's <b>${seg.V_out}</b>, the absolute velocity leaving the blade, at angle <b>${seg.a_out}</b> to the baseline.`},
+      {t:"Read off the components and the work done",
+       d:`Drop perpendiculars from C and D onto the baseline to get ${seg.Vw_in}, ${seg.Vw_out} (whirl) and ${seg.Vf_in}, ${seg.Vf_out} (flow). Specific work w = U\u00d7(${seg.Vw_in} \u2212 ${seg.Vw_out}), taking ${seg.Vw_out} negative when it points opposite to U (the usual case).`},
+    ];}
+  },
+
+  curtis: {
+    key:'curtis', name:'Curtis', tag:'Velocity-compounded impulse',
+    segMode:'rows', segCount:2, minSeg:2, maxSeg:4, chained:true,
+    blurb:"All the pressure still drops in one nozzle row, exactly as in a De Laval stage \u2014 but instead of handing all that kinetic energy to a single blade row, a Curtis stage bleeds it off gradually across two or more moving rows, with a row of fixed guide blades between each pair to redirect the flow. That lets the same enthalpy drop be absorbed at a much lower, gearless blade speed.",
+    tutorialIntro:"Build the first row exactly like a De Laval stage. Then pass the exit steam through a row of fixed guide blades \u2014 which turn the flow but add no energy \u2014 and repeat the construction for the next row.",
+    steps(seg){
+      const isFirst = seg.idx===1;
+      const base = TURBINES.delaval.steps(seg);
+      if(isFirst) return base;
+      return [
+        {t:`Guide blades redirect the flow into row ${seg.idx}`,
+         d:`The fixed guide row does no work \u2014 it only turns the steam. ${seg.V_in} = k<sub>g</sub>\u00d7V<sub>${seg.a-1}</sub> at the guide exit angle you choose for ${seg.a_in} (k<sub>g</sub>\u22481 for a low-loss guide passage).`},
+        ...base.slice(1)
+      ];
+    }
+  },
+
+  rateau: {
+    key:'rateau', name:'Rateau', tag:'Pressure-compounded impulse',
+    segMode:'stages', segCount:2, minSeg:2, maxSeg:4, chained:false,
+    blurb:"Rather than dropping all the pressure at once, the total enthalpy drop is split across several simple impulse stages in series, each with its own nozzle row and its own single blade row \u2014 in effect, several small De Laval stages back to back. Because each stage only takes a slice of the drop, steam speeds \u2014 and so blade speed \u2014 stay modest all the way through.",
+    tutorialIntro:"Each stage is an independent De Laval construction: its own nozzle, its own fresh V1. Unlike Curtis, nothing carries over from the previous stage's exit velocity \u2014 only the shaft speed U is shared.",
+    steps(seg){
+      const base = TURBINES.delaval.steps(seg);
+      if(seg.idx===1) return base;
+      return [
+        {t:`A fresh nozzle row feeds stage ${seg.idx}`,
+         d:`The steam re-expands through its own nozzle row using the next slice of the total pressure drop \u2014 ${seg.V_in} is chosen independently of the previous stage's exit velocity, typically similar in magnitude since U stays the same and each stage is designed near the same efficient U/V ratio.`},
+        ...base.slice(1)
+      ];
+    }
+  },
+
+  parsons: {
+    key:'parsons', name:'Parsons', tag:'50% reaction',
+    segMode:'fixed', segCount:1, chained:false, symmetric:true,
+    blurb:"Both the fixed and the moving rows are shaped like nozzles, so pressure drops \u2014 and steam accelerates \u2014 in both the stator and the rotor. At exactly 50% reaction the two rows end up with identical blade profiles, and the inlet and outlet velocity triangles become mirror images of one another.",
+    tutorialIntro:"Build the inlet triangle as usual, then exploit the symmetry: the outlet triangle is simply the inlet triangle reflected, because the fixed and moving blades share a profile.",
+    steps(seg){ return [
+      {t:"Lay down the baseline", d:`Draw <b>U</b> horizontally, tail <b>O</b>, head <b>A</b>, exactly as before.`},
+      {t:`Draw ${seg.V_in}`, d:`From <b>O</b>, draw <b>${seg.V_in}</b> at angle <b>${seg.a_in}</b> \u2014 its tip is <b>C</b>.`},
+      {t:`Find ${seg.Vr_in}`, d:`Join <b>A</b>\u2013<b>C</b>. That's <b>${seg.Vr_in}</b>, at angle <b>${seg.b_in}</b> to the baseline \u2014 read this off, it fixes the moving blade's inlet shape.`},
+      {t:"Use the mirror symmetry",
+       d:`Because reaction R=0.5, the exit row mirrors the entry row exactly: <b>${seg.Vr_out}</b> equals <b>${seg.V_in}</b> in length and sits at <b>${seg.b_out}</b> = ${seg.a_in}; <b>${seg.V_out}</b> equals <b>${seg.Vr_in}</b> in length and sits at <b>${seg.a_out}</b> = ${seg.b_in}.`},
+      {t:`Draw ${seg.Vr_out} and close with ${seg.V_out}`,
+       d:`From <b>A</b>, draw <b>${seg.Vr_out}</b> at angle ${seg.b_out} to point <b>D</b>. Join <b>O</b>\u2013<b>D</b> for <b>${seg.V_out}</b> and check it comes out equal in length to ${seg.Vr_in}.`},
+      {t:"Check the flow velocity is constant",
+       d:`${seg.Vf_in} should equal ${seg.Vf_out} \u2014 a hallmark of the 50% reaction design: the axial component of velocity stays constant while the blades do the work of turning the flow.`},
+    ];}
+  },
+
+  general: {
+    key:'general', name:'General', tag:'Custom degree of reaction',
+    segMode:'fixed', segCount:1, chained:false, free:true,
+    blurb:"A free-form stage between the pure-impulse (De Laval/Curtis/Rateau, R=0) and 50%-reaction (Parsons, R=0.5) extremes. Define the inlet and outlet triangles independently, in whichever combination of angle and vector you know, and read the resulting degree of reaction back off the diagram.",
+    tutorialIntro:"There's no single fixed recipe here \u2014 use Construct mode's independent inlet/outlet solvers, or place every vector by hand with the Draw tool.",
+    steps(seg){ return [
+      {t:"Lay down the baseline", d:"Draw <b>U</b> horizontally, tail <b>O</b>, head <b>A</b>."},
+      {t:"Build the inlet triangle", d:`Draw ${seg.V_in} at ${seg.a_in} from O (or ${seg.Vr_in} at ${seg.b_in} from A) \u2014 whichever you know \u2014 and complete the triangle to find the other.`},
+      {t:"Build the outlet triangle", d:`Draw ${seg.V_out} at ${seg.a_out} from O (or ${seg.Vr_out} at ${seg.b_out} from A, remembering it usually points opposite to U) and complete the triangle.`},
+      {t:"Read the degree of reaction", d:"Switch to the Results tab: R is estimated from the kinetic-energy split between the fixed and moving rows once both triangles exist."},
+    ];}
+  }
+};
+
+const TURBINE_ORDER = ['delaval','curtis','rateau','parsons','general'];
+/* =========================================================================
+   Geometry / physics engine
+   Physical coordinate convention: +x = tangential direction (direction of
+   U, blade motion), +y = axial / flow direction (direction steam travels
+   through the row). All angles are measured from the +x axis in degrees,
+   standard math sense (counter-clockwise positive), matching how alpha/beta
+   are defined against the tangential blade-speed direction in the text.
+   ========================================================================= */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function deg2rad(d){ return d*Math.PI/180; }
+function rad2deg(r){ return r*180/Math.PI; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function round1(n){ return Math.round(n*10)/10; }
+function round2(n){ return Math.round(n*100)/100; }
+function uid(){ return 'v'+(Math.random().toString(36).slice(2,9)); }
+
+function svgEl(tag, attrs, children){
+  const el = document.createElementNS(SVG_NS, tag);
+  if(attrs) for(const k in attrs){ if(attrs[k]!==undefined && attrs[k]!==null) el.setAttribute(k, attrs[k]); }
+  if(children) children.forEach(c=>c && el.appendChild(c));
+  return el;
+}
+
+/* ---- vector helpers (vectors stored as physical endpoints ox,oy -> ex,ey) --- */
+function vLen(v){ return Math.hypot(v.ex-v.ox, v.ey-v.oy); }
+function vAngle(v){ return rad2deg(Math.atan2(v.ey-v.oy, v.ex-v.ox)); } // -180..180
+function pointFrom(ox,oy,mag,angleDeg){
+  const a = deg2rad(angleDeg);
+  return { ex: ox+mag*Math.cos(a), ey: oy+mag*Math.sin(a) };
+}
+
+/* ---- turbomachinery relations (validated numerically) ---- */
+
+// Inlet triangle from U, V_in magnitude, alpha_in (deg, measured from +x/tangential)
+function solveInlet(U, Vin, alphaDeg){
+  const a = deg2rad(alphaDeg);
+  const Vw = Vin*Math.cos(a);
+  const Vf = Vin*Math.sin(a);
+  const Vrx = Vw - U, Vry = Vf;
+  const Vr = Math.hypot(Vrx,Vry);
+  let beta = rad2deg(Math.atan2(Vry,Vrx));
+  if(beta<0) beta += 180;
+  return { Vw, Vf, Vr, beta, Vrx, Vry, V:Vin, alpha:alphaDeg };
+}
+
+// Outlet triangle from U, Vr_out magnitude, beta_out (deg), direction of its
+// tangential component relative to U ('backward' = opposes U, typical; 'forward' = same sense),
+// optional forced Vf_out (axial component), e.g. to hold Vf constant through the row.
+function solveOutlet(U, Vrout, betaDeg, direction, VfForce){
+  const b = deg2rad(betaDeg);
+  const sign = direction==='forward' ? 1 : -1;
+  const Vrx = sign*Vrout*Math.cos(b);
+  const Vry = (VfForce!==undefined && VfForce!==null) ? VfForce : Vrout*Math.sin(b);
+  const Vx = Vrx+U, Vy = Vry;
+  const V = Math.hypot(Vx,Vy);
+  const alpha = rad2deg(Math.atan2(Vy,Vx));
+  return { Vw:Vx, Vf:Vy, V, alpha, Vr:Vrout, beta:betaDeg, Vrx, Vry };
+}
+
+// Full segment solve: returns inlet + outlet + derived work/efficiency numbers.
+// opts: {U, Vin, alphaIn, betaOut, k (Vr2/Vr1), holdVf(bool), direction,
+//        outletMode:'relative'(default, Vr+beta) | 'absolute'(V+alpha direct), Vout, alphaOut}
+function solveSegment(opts){
+  const inlet = solveInlet(opts.U, opts.Vin, opts.alphaIn);
+  let outlet;
+  if(opts.outletMode==='absolute'){
+    const sub = solveInlet(opts.U, opts.Vout, opts.alphaOut); // same op: absolute vel minus U
+    outlet = { Vw: opts.Vout*Math.cos(deg2rad(opts.alphaOut)), Vf: opts.Vout*Math.sin(deg2rad(opts.alphaOut)),
+               V: opts.Vout, alpha: opts.alphaOut, Vr: sub.Vr, beta: sub.beta, Vrx: sub.Vrx, Vry: sub.Vry };
+  } else {
+    const Vrout = (opts.Vrout!==undefined) ? opts.Vrout : opts.k*inlet.Vr;
+    outlet = solveOutlet(opts.U, Vrout, opts.betaOut, opts.direction||'backward',
+                          opts.holdVf ? inlet.Vf : undefined);
+  }
+  const dVw = inlet.Vw - outlet.Vw; // signed subtraction => correct magnitude when Vw2 opposes U
+  const work = opts.U*dVw;
+  // Energy actually supplied to the stage: KE at nozzle/guide entry PLUS whatever extra
+  // KE the moving row itself adds when Vr2>Vr1 (i.e. when there's reaction in the rotor).
+  // For a pure impulse row Vr2<=Vr1 (friction only) so this reduces to the familiar V1^2/2.
+  const rotorKE = Math.max(0, (outlet.Vr*outlet.Vr - inlet.Vr*inlet.Vr));
+  const statorKE = Math.max(0, (inlet.V*inlet.V - outlet.V*outlet.V));
+  const ke = 0.5*inlet.V*inlet.V + 0.5*rotorKE;
+  const diagEff = ke>0 ? work/ke : 0;
+  const R = (rotorKE+statorKE)>0 ? rotorKE/(rotorKE+statorKE) : 0;
+  return { inlet, outlet, dVw, work, diagEff, R };
+}
+
+function computeRFromMags(Vin,Vout,Vrin,Vrout){
+  const rotorKE = Math.max(0, Vrout*Vrout - Vrin*Vrin);
+  const statorKE = Math.max(0, Vin*Vin - Vout*Vout);
+  return (rotorKE+statorKE)>0 ? rotorKE/(rotorKE+statorKE) : 0;
+}
+/* =========================================================================
+   Application state
+   ========================================================================= */
+const state = {
+  turbineKey: 'delaval',
+  mode: 'tutorial',           // 'free' | 'tutorial' | 'construct'
+  segCount: 1,
+  tool: 'draw',
+  gridOn: true,
+  snapOn: true,
+  gridUnit: 50,               // physical units (m/s) represented by one grid square
+  gridPx: 40,                 // screen pixels per grid square
+  origin: {x:130, y:420},     // screen px location of physical (0,0); set properly on resize
+  orientation: 'up',          // 'up' | 'down' — display-only flip of the whole diagram about the
+                               // baseline; never touches stored vector coordinates, labels, angles
+                               // or the physics/Results math, all of which are computed from the
+                               // unflipped physical coordinates.
+  vectors: [],                // {id,label,ox,oy,ex,ey,locked,segIdx,dashed,note}
+  selectedId: null,
+  hoverId: null,
+  draft: null,
+  history: [],
+  future: [],
+  tutorial: {},                // per-turbine step index
+  construct: {},                // per-turbine form values
+  measure: null,                // last measurement result {len,angle}
+  panning:false,
+};
+TURBINE_ORDER.forEach(k=>{ state.tutorial[k] = 0; });
+
+function currentTurbine(){ return TURBINES[state.turbineKey]; }
+
+function segCountFor(key){
+  const t = TURBINES[key];
+  if(t.segMode==='fixed') return 1;
+  return clamp(state.segCount, t.minSeg, t.maxSeg);
+}
+
+function snapshot(){
+  state.history.push(JSON.stringify(state.vectors));
+  if(state.history.length>80) state.history.shift();
+  state.future.length = 0;
+}
+function undo(){
+  if(!state.history.length) return;
+  state.future.push(JSON.stringify(state.vectors));
+  state.vectors = JSON.parse(state.history.pop());
+  state.selectedId = null;
+  renderAll();
+}
+function redo(){
+  if(!state.future.length) return;
+  state.history.push(JSON.stringify(state.vectors));
+  state.vectors = JSON.parse(state.future.pop());
+  state.selectedId = null;
+  renderAll();
+}
+
+function addVector(v){
+  snapshot();
+  v.id = v.id || uid();
+  state.vectors.push(v);
+  return v;
+}
+function removeVector(id){
+  snapshot();
+  state.vectors = state.vectors.filter(v=>v.id!==id);
+  if(state.selectedId===id) state.selectedId=null;
+}
+function clearVectors(keepLocked){
+  snapshot();
+  state.vectors = keepLocked ? state.vectors.filter(v=>v.locked) : [];
+  state.selectedId = null;
+}
+function findVector(id){ return state.vectors.find(v=>v.id===id); }
+function vectorByLabel(label){ return state.vectors.find(v=>v.label===label); }
+/* =========================================================================
+   Rendering: grid, axes, vectors, angle arcs, selection, draft preview
+   ========================================================================= */
+let svg, layers = {};
+
+function scalePxPerUnit(){ return state.gridPx/state.gridUnit; }
+// orientationSign flips only the *rendering* of the y axis (up-pointing vs down-pointing
+// triangles). Every stored vector, every angle/length computation and every Results figure is
+// derived from the physical (px,py) coordinates below, which never change with orientation —
+// so flipping is purely cosmetic, exactly as requested.
+function orientationSign(){ return state.orientation==='down' ? -1 : 1; }
+function toScreen(px,py){ const s=scalePxPerUnit(), sign=orientationSign(); return {x: state.origin.x+px*s, y: state.origin.y-py*s*sign}; }
+function toPhysical(sx,sy){ const s=scalePxPerUnit(), sign=orientationSign(); return {x:(sx-state.origin.x)/s, y:((state.origin.y-sy)/s)*sign}; }
+function toggleOrientation(){
+  state.orientation = state.orientation==='down' ? 'up' : 'down';
+  // Mirror the origin about the canvas's current vertical middle so the diagram stays in view
+  // (a triangle that had room above the baseline now gets that same room below it, and vice
+  // versa) instead of jumping back to a fixed default and losing any panning the user did.
+  const h = svg._h || 600;
+  state.origin.y = h - state.origin.y;
+  renderAll();
+}
+
+function initSvg(){
+  svg = document.getElementById('svg-canvas');
+  layers.grid   = svgEl('g',{id:'layer-grid'});
+  layers.axis   = svgEl('g',{id:'layer-axis'});
+  layers.vec    = svgEl('g',{id:'layer-vec'});
+  layers.angle  = svgEl('g',{id:'layer-angle'});
+  layers.draft  = svgEl('g',{id:'layer-draft'});
+  layers.snap   = svgEl('g',{id:'layer-snap', style:'pointer-events:none;'});
+  layers.handle = svgEl('g',{id:'layer-handle'});
+  [layers.grid,layers.axis,layers.vec,layers.angle,layers.draft,layers.snap,layers.handle].forEach(g=>svg.appendChild(g));
+  resizeSvg();
+  window.addEventListener('resize', resizeSvg);
+}
+
+function resizeSvg(){
+  const r = svg.getBoundingClientRect();
+  const w = Math.max(200,r.width), h = Math.max(200,r.height);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg._w = w; svg._h = h;
+  if(!svg._originSet){
+    state.origin.x = Math.round(w*0.16);
+    state.origin.y = Math.round(h*0.78);
+    svg._originSet = true;
+  }
+  renderGrid();
+  renderVectors();
+}
+
+function renderGrid(){
+  const w = svg._w||900, h = svg._h||600;
+  while(layers.grid.firstChild) layers.grid.removeChild(layers.grid.firstChild);
+  while(layers.axis.firstChild) layers.axis.removeChild(layers.axis.firstChild);
+  if(state.gridOn){
+    const step = state.gridPx;
+    const offX = ((state.origin.x % step)+step)%step;
+    const offY = ((state.origin.y % step)+step)%step;
+    for(let x=offX; x<=w; x+=step){
+      const major = Math.round((x-state.origin.x)/step)%5===0;
+      layers.grid.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:h,stroke: major?'var(--vellum-line-major)':'var(--vellum-line)', 'stroke-width': major?1:1}));
+    }
+    for(let y=offY; y<=h; y+=step){
+      const major = Math.round((y-state.origin.y)/step)%5===0;
+      layers.grid.appendChild(svgEl('line',{x1:0,y1:y,x2:w,y2:y, stroke: major?'var(--vellum-line-major)':'var(--vellum-line)', 'stroke-width': major?1:1}));
+    }
+  }
+  // tangential axis (U direction) drawn as a firm reference line through the origin
+  layers.axis.appendChild(svgEl('line',{x1:0,y1:state.origin.y,x2:w,y2:state.origin.y,
+      stroke:'var(--ink-canvas)','stroke-width':1.1,'stroke-opacity':0.28}));
+  layers.axis.appendChild(svgEl('text',{x:w-6,y:state.origin.y-8,'text-anchor':'end','font-size':10,
+      'font-family':'var(--font-mono)',fill:'var(--ink-canvas)','fill-opacity':0.4}, [document.createTextNode('tangential \u2192')]));
+  const badge = document.getElementById('scale-badge');
+  if(badge) badge.textContent = `1 grid = ${state.gridUnit} m/s`;
+}
+
+/* ---------------- vectors ---------------- */
+function arrowHeadPath(tipX,tipY,angleDeg,size){
+  const a = deg2rad(angleDeg);
+  const back = 1;
+  const spread = deg2rad(24);
+  const p1x = tipX - size*Math.cos(a-spread), p1y = tipY - size*Math.sin(a-spread);
+  const p2x = tipX - size*Math.cos(a+spread), p2y = tipY - size*Math.sin(a+spread);
+  return `M ${tipX} ${tipY} L ${p1x} ${p1y} L ${tipX - size*0.55*Math.cos(a)} ${tipY - size*0.55*Math.sin(a)} L ${p2x} ${p2y} Z`;
+}
+
+function labelOffset(angleDeg){
+  const a = deg2rad(angleDeg);
+  return { dx: 13*Math.cos(a+ (angleDeg>=-90&&angleDeg<=90? -Math.PI/2 : Math.PI/2) ) , dy:0 };
+}
+
+// opts.keepHandleDom: true while a handle is actively being dragged. Rebuilding the whole
+// #layer-handle on every pointermove would destroy the very <circle> the pointer has captured
+// mid-drag — Chromium (correctly, per the Pointer Events spec) fires pointercancel the instant
+// that node leaves the document, which silently kills the drag after its very first pixel of
+// movement. So while dragging we leave the existing handle circles in the DOM and just slide
+// their cx/cy, and only rebuild the layer from scratch once the drag ends.
+function renderVectors(opts){
+  opts = opts || {};
+  while(layers.vec.firstChild) layers.vec.removeChild(layers.vec.firstChild);
+  while(layers.angle.firstChild) layers.angle.removeChild(layers.angle.firstChild);
+
+  const arcCount = new Map(); // stack concentric arcs when several vectors share an origin point
+  state.vectors.forEach(v=>drawOneVector(v,arcCount));
+
+  const v = state.selectedId && findVector(state.selectedId);
+  if(opts.keepHandleDom && v && !v.locked){
+    updateHandlePositions(v);
+  } else {
+    while(layers.handle.firstChild) layers.handle.removeChild(layers.handle.firstChild);
+    if(v && !v.locked) drawHandles(v);
+  }
+}
+function updateHandlePositions(v){
+  if(!layers.handle) return;
+  const o = toScreen(v.ox,v.oy), e = toScreen(v.ex,v.ey);
+  layers.handle.querySelectorAll(`circle[data-id="${v.id}"]`).forEach(c=>{
+    const p = c.dataset.handle==='o' ? o : e;
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+  });
+}
+
+function drawOneVector(v,arcCount){
+  const kind = kindOfLabel(v.label);
+  const color = v.color || COLORS[kind] || COLORS.construction;
+  const o = toScreen(v.ox,v.oy), e = toScreen(v.ex,v.ey);
+  const len = Math.hypot(e.x-o.x, e.y-o.y);
+  const isSelected = state.selectedId===v.id;
+  const isHover = state.hoverId===v.id;
+  const dashed = kind==='Vw' || kind==='Vf';
+  const g = svgEl('g',{class:'vec-group', 'data-id':v.id});
+
+  if(len>2){
+    const angScreen = rad2deg(Math.atan2(e.y-o.y,e.x-o.x));
+    const headSize = 10;
+    const shrink = Math.min(headSize*0.9, len*0.4);
+    const ang = deg2rad(angScreen);
+    const bx = e.x - shrink*Math.cos(ang), by = e.y - shrink*Math.sin(ang);
+
+    if(isSelected || isHover){
+      g.appendChild(svgEl('line',{x1:o.x,y1:o.y,x2:e.x,y2:e.y,stroke:isSelected?COLORS.selected:color,
+        'stroke-width': 7,'stroke-linecap':'round','stroke-opacity':0.22}));
+    }
+    const line = svgEl('line',{x1:o.x,y1:o.y,x2:bx,y2:by,stroke:color,'stroke-width':2.4,
+      'stroke-linecap':'round', 'stroke-dasharray': dashed?'6 4':null});
+    g.appendChild(line);
+    g.appendChild(svgEl('path',{d:arrowHeadPath(e.x,e.y,angScreen,headSize),fill:color}));
+    g.appendChild(svgEl('circle',{cx:o.x,cy:o.y,r:2.6,fill:color}));
+
+    // label
+    const midx=(o.x+e.x)/2, midy=(o.y+e.y)/2;
+    const perp = ang + Math.PI/2;
+    const push = 15;
+    let lx = midx + push*Math.cos(perp), ly = midy + push*Math.sin(perp);
+    const lbl = svgEl('text',{x:lx,y:ly,'text-anchor':'middle','dominant-baseline':'middle',
+      'font-family':'var(--font-mono)','font-size':12.5,'font-weight':600,fill:color},
+      [document.createTextNode(v.label)]);
+    g.appendChild(lbl);
+  }
+  layers.vec.appendChild(g);
+
+  // angle arc vs the tangential line, for primary V / Vr type vectors only
+  if((kind==='V'||kind==='Vr') && len>18){
+    drawAngleArc(v, o, color, arcCount);
+  }
+}
+
+// Shows the acute angle to whichever horizontal direction (forward or backward
+// along U) is nearer \u2014 matching how alpha/beta are always quoted in the text,
+// regardless of which side of the baseline the vector actually points.
+function drawAngleArc(v,o,color,arcCount){
+  const key = Math.round(v.ox)+','+Math.round(v.oy);
+  const n = arcCount.get(key)||0;
+  arcCount.set(key, n+1);
+  const radius = 20 + n*11;
+
+  const angDeg = rad2deg(Math.atan2(v.ey-v.oy, v.ex-v.ox)); // physical angle, +x=tangential
+  const backward = Math.cos(deg2rad(angDeg)) < 0;
+  const startAngScreen = backward ? Math.PI : 0;
+  const tip = toScreen(v.ex,v.ey);
+  const endAngScreen = Math.atan2(tip.y-o.y, tip.x-o.x);
+  let delta = endAngScreen - startAngScreen;
+  while(delta > Math.PI) delta -= 2*Math.PI;
+  while(delta < -Math.PI) delta += 2*Math.PI;
+  const sweep = delta > 0 ? 1 : 0;
+  const large = Math.abs(delta) > Math.PI/2 ? 1 : 0;
+  const sx = o.x+radius*Math.cos(startAngScreen), sy = o.y+radius*Math.sin(startAngScreen);
+  const ex = o.x+radius*Math.cos(endAngScreen), ey = o.y+radius*Math.sin(endAngScreen);
+  const path = svgEl('path',{d:`M ${sx} ${sy} A ${radius} ${radius} 0 ${large} ${sweep} ${ex} ${ey}`,
+    fill:'none',stroke:color,'stroke-width':1.1,'stroke-opacity':0.6});
+  layers.angle.appendChild(path);
+  const midAng = startAngScreen + delta/2;
+  const tx = o.x+(radius+13)*Math.cos(midAng), ty = o.y+(radius+13)*Math.sin(midAng);
+  const shown = round1(Math.abs(delta)*180/Math.PI);
+  layers.angle.appendChild(svgEl('text',{x:tx,y:ty,'text-anchor':'middle','dominant-baseline':'middle',
+    'font-family':'var(--font-mono)','font-size':10.5,fill:color,'fill-opacity':0.9},
+    [document.createTextNode(shown+'\u00b0')]));
+}
+
+function drawHandles(v){
+  const o = toScreen(v.ox,v.oy), e = toScreen(v.ex,v.ey);
+  [{p:o,r:'o'},{p:e,r:'e'}].forEach(h=>{
+    layers.handle.appendChild(svgEl('circle',{cx:h.p.x,cy:h.p.y,r:5,fill:'var(--graphite-900)',
+      stroke:COLORS.selected,'stroke-width':2,'data-handle':h.r,'data-id':v.id,style:'cursor:pointer;'}));
+  });
+}
+
+function drawDraft(ox,oy,ex,ey,color,label){
+  while(layers.draft.firstChild) layers.draft.removeChild(layers.draft.firstChild);
+  const o = toScreen(ox,oy), e = toScreen(ex,ey);
+  const len = Math.hypot(e.x-o.x,e.y-o.y);
+  if(len<1) return;
+  const ang = rad2deg(Math.atan2(e.y-o.y,e.x-o.x));
+  layers.draft.appendChild(svgEl('line',{x1:o.x,y1:o.y,x2:e.x,y2:e.y,stroke:color||COLORS.construction,
+    'stroke-width':2,'stroke-dasharray':'5 4','stroke-linecap':'round'}));
+  layers.draft.appendChild(svgEl('path',{d:arrowHeadPath(e.x,e.y,ang,9),fill:color||COLORS.construction,'fill-opacity':0.85}));
+  layers.draft.appendChild(svgEl('circle',{cx:o.x,cy:o.y,r:3,fill:color||COLORS.construction}));
+  if(label) layers.draft.appendChild(svgEl('text',{x:e.x+10,y:e.y-8,'font-family':'var(--font-mono)',
+    'font-size':11.5,fill:color||COLORS.construction},[document.createTextNode(label)]));
+}
+function clearDraft(){ while(layers.draft.firstChild) layers.draft.removeChild(layers.draft.firstChild); }
+
+function renderAll(){
+  renderGrid();
+  renderVectors();
+  // The chrome around the sheet (bottom bar / side panel / top tabs) gets fully rebuilt from
+  // scratch here, which is comparatively expensive. Doing that synchronously inside a pointerup
+  // handler — right as the browser is finishing its own bookkeeping for that gesture — is what
+  // was making the very next drag on the sheet arrive as a "pointercancel" instead of a normal
+  // drag. Pushing it one frame out costs nothing visible (it lands well under a frame later)
+  // and keeps it off the critical path of the gesture that triggered it.
+  requestAnimationFrame(()=>{
+    if(typeof updateBottomBar==='function') updateBottomBar();
+    if(typeof updatePanel==='function') updatePanel();
+    if(typeof updateTopbar==='function') updateTopbar();
+  });
+}
+/* =========================================================================
+   Interaction: tools, pointer handling, hit-testing, wiring
+   ========================================================================= */
+let drag = null; // {mode:'draw'|'measure-length'|'measure-angle'|'pan'|'handle', ...}
+
+function getSvgPoint(evt){
+  const r = svg.getBoundingClientRect();
+  return { x: evt.clientX - r.left, y: evt.clientY - r.top };
+}
+function distToSeg(px,py,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1, len2=dx*dx+dy*dy;
+  if(len2===0) return Math.hypot(px-x1,py-y1);
+  let t=((px-x1)*dx+(py-y1)*dy)/len2; t=clamp(t,0,1);
+  return Math.hypot(px-(x1+t*dx), py-(y1+t*dy));
+}
+function hitTestVector(sx,sy,thresh){
+  thresh = thresh||10; let best=null,bd=Infinity;
+  state.vectors.forEach(v=>{
+    const o=toScreen(v.ox,v.oy), e=toScreen(v.ex,v.ey);
+    const d = distToSeg(sx,sy,o.x,o.y,e.x,e.y);
+    if(d<thresh && d<bd){bd=d;best=v;}
+  });
+  return best;
+}
+
+/* ---------------- snapping: real grid intersections + magnetic vector endpoints ----------------
+   Endpoint magnetism wins within a fixed screen-space capture radius (it's meant to click two
+   vector tips together exactly, e.g. to close a triangle); otherwise, if the grid is on, the
+   point snaps to the nearest actual grid intersection — the same spacing the grid lines are
+   drawn at, so what you see is what you snap to. Returns null when nothing should be snapped
+   (snap is off, or grid is off and no endpoint is near). */
+const SNAP_CAPTURE_PX = 13;
+function findSnapTarget(sx, sy, opts){
+  opts = opts || {};
+  if(!state.snapOn) return null;
+  let best=null, bd=SNAP_CAPTURE_PX;
+  const consider = (x,y)=>{
+    const s = toScreen(x,y);
+    const d = Math.hypot(sx-s.x, sy-s.y);
+    if(d<bd){ bd=d; best={x,y,type:'endpoint'}; }
+  };
+  consider(0,0); // origin O is always a valid snap target
+  state.vectors.forEach(v=>{
+    if(opts.excludeVectorId && v.id===opts.excludeVectorId) return;
+    consider(v.ox,v.oy);
+    consider(v.ex,v.ey);
+  });
+  if(best) return best;
+  if(state.gridOn){
+    const p = toPhysical(sx,sy);
+    const u = state.gridUnit;
+    return { x: Math.round(p.x/u)*u, y: Math.round(p.y/u)*u, type:'grid' };
+  }
+  return null;
+}
+function drawSnapIndicator(snap){
+  clearSnapIndicator();
+  if(!snap || !layers.snap) return;
+  const s = toScreen(snap.x, snap.y);
+  const color = snap.type==='endpoint' ? COLORS.selected : COLORS.ok;
+  layers.snap.appendChild(svgEl('circle',{cx:s.x,cy:s.y,r: snap.type==='endpoint'?9:6.5,
+    fill:'none',stroke:color,'stroke-width':1.8,'stroke-opacity':0.9}));
+  layers.snap.appendChild(svgEl('circle',{cx:s.x,cy:s.y,r:2,fill:color}));
+}
+function clearSnapIndicator(){ if(layers.snap) while(layers.snap.firstChild) layers.snap.removeChild(layers.snap.firstChild); }
+
+/* ---------------- label options ---------------- */
+function labelOptions(){
+  const t = currentTurbine(); const n = segCountFor(t.key);
+  const opts = [{v:'U',t:'U — blade velocity'}];
+  for(let i=1;i<=n;i++){
+    const s = segLabels(i);
+    opts.push({v:s.V_in, t:`${s.V_in} — absolute vel. in`});
+    opts.push({v:s.Vr_in,t:`${s.Vr_in} — relative vel. in`});
+    opts.push({v:s.Vw_in,t:`${s.Vw_in} — whirl comp. in`});
+    opts.push({v:s.Vf_in,t:`${s.Vf_in} — flow comp. in`});
+    opts.push({v:s.V_out, t:`${s.V_out} — absolute vel. out`});
+    opts.push({v:s.Vr_out,t:`${s.Vr_out} — relative vel. out`});
+    opts.push({v:s.Vw_out,t:`${s.Vw_out} — whirl comp. out`});
+    opts.push({v:s.Vf_out,t:`${s.Vf_out} — flow comp. out`});
+  }
+  opts.push({v:'__custom__',t:'Custom label\u2026'});
+  return opts;
+}
+
+/* ---------------- draw tool ---------------- */
+function beginDraw(sx,sy){
+  const snap = findSnapTarget(sx,sy);
+  const originPhys = snap ? {x:snap.x,y:snap.y} : toPhysical(sx,sy);
+  drag = {mode:'draw', ox:originPhys.x, oy:originPhys.y};
+  updateDraftFromPointer(sx,sy);
+}
+// The live line tracks the raw cursor smoothly (no snapping math on every pointermove \u2014 see the
+// note by SNAP_CAPTURE_PX above); the start point and the release point are each snapped once,
+// in beginDraw/finishDraw, so the vector you actually place still lands exactly on the grid or
+// on another vector's tip. The brief flash of the snap ring right at release confirms it.
+function updateDraftFromPointer(sx,sy){
+  if(!drag) return;
+  const p = toPhysical(sx,sy);
+  const mag = Math.hypot(p.x-drag.ox, p.y-drag.oy);
+  const ang = rad2deg(Math.atan2(p.y-drag.oy, p.x-drag.ox));
+  drag.mag = mag; drag.ang = ang; drag.ex = p.x; drag.ey = p.y; drag.lastSx = sx; drag.lastSy = sy;
+  const label = getBottomLabelValue();
+  const color = colorOfLabel(label==='__custom__'?'?':label);
+  drawDraft(drag.ox,drag.oy,p.x,p.y,color,`${round1(mag)} @ ${round1(ang)}\u00b0`);
+  setBottomNumber('field-mag', round1(mag));
+  setBottomNumber('field-ang', round1(ang));
+}
+function finishDraw(){
+  if(!drag) return;
+  clearDraft();
+  const snap = findSnapTarget(drag.lastSx, drag.lastSy);
+  if(snap){ drag.ex = snap.x; drag.ey = snap.y; drag.mag = Math.hypot(drag.ex-drag.ox, drag.ey-drag.oy); }
+  if(drag.mag>2){
+    placeVectorAt(drag.ox,drag.oy,drag.ex,drag.ey);
+    if(snap){ drawSnapIndicator(snap); setTimeout(clearSnapIndicator, 220); }
+  }
+  drag = null;
+}
+function resolveLabelFromFields(){
+  let label = getBottomLabelValue();
+  if(label==='__custom__'){
+    const t = document.getElementById('field-custom-label');
+    label = (t && t.value.trim()) || 'x';
+  }
+  return label;
+}
+function placeVectorAt(ox,oy,ex,ey){
+  const label = resolveLabelFromFields();
+  addVector({label, ox,oy, ex,ey, locked:false});
+  renderAll();          // rebuilds the bottom bar (fresh <select> element)
+  advanceLabelSelect(label); // ...so this must run after, against the new element
+}
+function placeVectorFromFields(ox,oy){
+  const mag = parseFloat(document.getElementById('field-mag').value)||0;
+  const ang = parseFloat(document.getElementById('field-ang').value)||0;
+  if(mag<=0) return;
+  if(ox===undefined){
+    const originSel = document.getElementById('field-origin').value;
+    const originPt = resolveOriginSelector(originSel);
+    ox = originPt.x; oy = originPt.y;
+  }
+  const pf = pointFrom(ox,oy,mag,ang);
+  placeVectorAt(ox,oy,pf.ex,pf.ey);
+}
+function resolveOriginSelector(sel){
+  if(sel==='O') return {x:0,y:0};
+  const v = vectorByLabel(sel);
+  if(v) return {x:v.ex,y:v.ey};
+  return {x:0,y:0};
+}
+function advanceLabelSelect(justPlaced){
+  const opts = labelOptions().map(o=>o.v);
+  const used = new Set(state.vectors.map(v=>v.label));
+  const idx = opts.indexOf(justPlaced);
+  for(let i=idx+1;i<opts.length;i++){
+    if(!used.has(opts[i]) && opts[i]!=='__custom__'){ setLabelSelect(opts[i]); return; }
+  }
+}
+
+/* ---------------- measure tools ---------------- */
+function beginMeasureLength(sx,sy){
+  const hit = hitTestVector(sx,sy,10);
+  if(hit){
+    state.measure = {kind:'vector', label:hit.label, len:round1(vLen(hit)), angle:round1(vAngle2(hit))};
+    updatePanel(); updateBottomBar();
+    return;
+  }
+  const snap = findSnapTarget(sx,sy);
+  const originPhys = snap ? {x:snap.x,y:snap.y} : toPhysical(sx,sy);
+  drag = {mode:'measure-length', ox:originPhys.x, oy:originPhys.y};
+}
+function vAngle2(v){ return rad2deg(Math.atan2(v.ey-v.oy, v.ex-v.ox)); }
+function updateMeasureLengthDrag(sx,sy){
+  const p = toPhysical(sx,sy);
+  drag.lastSx = sx; drag.lastSy = sy;
+  const mag = Math.hypot(p.x-drag.ox,p.y-drag.oy);
+  const ang = rad2deg(Math.atan2(p.y-drag.oy,p.x-drag.ox));
+  drawDraft(drag.ox,drag.oy,p.x,p.y,COLORS.construction,`${round1(mag)} units @ ${round1(ang)}\u00b0`);
+  state.measure = {kind:'drag', len:round1(mag), angle:round1(ang)};
+  updateBottomBar();
+}
+function finishMeasureLength(){
+  clearDraft();
+  if(drag){
+    const snap = findSnapTarget(drag.lastSx, drag.lastSy);
+    if(snap){
+      state.measure = {kind:'drag', len:round1(Math.hypot(snap.x-drag.ox,snap.y-drag.oy)),
+        angle:round1(rad2deg(Math.atan2(snap.y-drag.oy,snap.x-drag.ox)))};
+      drawSnapIndicator(snap); setTimeout(clearSnapIndicator, 220);
+    }
+  }
+  drag=null; updatePanel();
+}
+
+let angleFirst = null;
+function beginMeasureAngle(sx,sy){
+  const hit = hitTestVector(sx,sy,10);
+  const picked = hit ? {label:hit.label, ang:vAngle2(hit), color:colorOfLabel(hit.label)} : {label:'baseline (U)', ang:0, color:COLORS.U};
+  if(!angleFirst){
+    angleFirst = picked;
+    setHint(`First vector: ${picked.label}. Now click a second vector (or empty space for the baseline).`);
+  } else {
+    const diff = angleBetween(angleFirst.ang, picked.ang);
+    state.measure = {kind:'angle', a:angleFirst.label, b:picked.label, angle:round1(diff)};
+    setHint(`Angle between ${angleFirst.label} and ${picked.label}: ${round1(diff)}\u00b0`);
+    angleFirst = null;
+    updatePanel(); updateBottomBar();
+  }
+}
+function angleBetween(a,b){
+  let d = Math.abs(a-b)%360; if(d>180) d=360-d; return d;
+}
+
+/* ---------------- erase / select / pan ---------------- */
+function doErase(sx,sy){
+  const hit = hitTestVector(sx,sy,10);
+  if(!hit) return;
+  if(hit.locked){
+    setHint(`${hit.label} is locked — it's part of a constructed diagram. Select it and choose "Unlock to edit", or use Clear to start over.`);
+    return;
+  }
+  removeVector(hit.id);
+  renderAll();
+}
+function doSelect(sx,sy){
+  const handleHit = document.elementFromPoint(sx + svg.getBoundingClientRect().left, sy+svg.getBoundingClientRect().top);
+  if(handleHit && handleHit.dataset && handleHit.dataset.handle){
+    const hv = findVector(handleHit.dataset.id);
+    if(hv && hv.locked){ setHint(`${hv.label} is locked — unlock it below to drag its endpoints.`); return; }
+    drag = {mode:'handle', id:handleHit.dataset.id, which:handleHit.dataset.handle, started:false};
+    return;
+  }
+  const hit = hitTestVector(sx,sy,10);
+  state.selectedId = hit ? hit.id : null;
+  renderAll();
+}
+function doPan(sx,sy){ drag = {mode:'pan', sx,sy, ox:state.origin.x, oy:state.origin.y}; svg.classList.add('panning'); }
+function finishHandleDrag(){
+  if(!drag){ return; }
+  const v = findVector(drag.id);
+  if(v && drag.started){
+    const snap = findSnapTarget(drag.lastSx, drag.lastSy, {excludeVectorId:v.id});
+    if(snap){
+      if(drag.which==='o'){ v.ox=snap.x; v.oy=snap.y; } else { v.ex=snap.x; v.ey=snap.y; }
+      drawSnapIndicator(snap); setTimeout(clearSnapIndicator, 220);
+    }
+  }
+  drag=null;
+  renderVectors();
+}
+
+/* ---------------- pointer wiring ---------------- */
+function wirePointer(){
+  svg.addEventListener('pointerdown', e=>{
+    svg.setPointerCapture(e.pointerId);
+    const p = getSvgPoint(e);
+    if(state.tool==='draw') beginDraw(p.x,p.y);
+    else if(state.tool==='measure-length') beginMeasureLength(p.x,p.y);
+    else if(state.tool==='measure-angle') beginMeasureAngle(p.x,p.y);
+    else if(state.tool==='erase') doErase(p.x,p.y);
+    else if(state.tool==='select') doSelect(p.x,p.y);
+    else if(state.tool==='pan') doPan(p.x,p.y);
+  });
+  // Bound to window rather than the svg, so dragging keeps tracking smoothly even if the
+  // cursor strays outside the sheet mid-drag. Note that findSnapTarget() is deliberately NOT
+  // called from here on every pointermove for 'draw'/'measure-length'/'handle' drags — only
+  // once at the start (beginDraw/beginMeasureLength/doSelect's handle pickup) and once at the
+  // end (finishDraw/finishMeasureLength/finishHandleDrag). Calling it continuously during a
+  // drag was found to reliably corrupt the pointer-capture state of a later, unrelated drag
+  // gesture in Chromium; snapping just the two endpoints of each gesture avoids that entirely
+  // and is imperceptible in practice — the line still tracks the cursor smoothly and lands
+  // exactly on the grid or on another vector's tip the instant you release.
+  window.addEventListener('pointermove', e=>{
+    const p = getSvgPoint(e);
+    const coordEl = document.getElementById('coord-readout');
+    if(coordEl){
+      const ph = toPhysical(p.x,p.y);
+      // Fixed-width, fixed-decimal formatting: the box this sits in never changes size as the
+      // numbers change, so nothing to its right in the bottom bar (the Vector dropdown and
+      // everything after it) jitters sideways while the cursor moves.
+      coordEl.textContent = `${round1(ph.x).toFixed(1)}, ${round1(ph.y).toFixed(1)}`;
+    }
+    if(!drag) return;
+    if(drag.mode==='draw') updateDraftFromPointer(p.x,p.y);
+    else if(drag.mode==='measure-length') updateMeasureLengthDrag(p.x,p.y);
+    else if(drag.mode==='pan'){ state.origin.x = drag.ox+(p.x-drag.sx); state.origin.y = drag.oy+(p.y-drag.sy); renderGrid(); renderVectors(); }
+    else if(drag.mode==='handle'){
+      const v = findVector(drag.id); if(!v) return;
+      if(!drag.started){ snapshot(); drag.started = true; } // snapshot the pre-drag state exactly once
+      drag.lastSx = p.x; drag.lastSy = p.y;
+      const pt = toPhysical(p.x,p.y); // raw tracking while dragging — see the note on updateDraftFromPointer
+      if(drag.which==='o'){ v.ox=pt.x; v.oy=pt.y; } else { v.ex=pt.x; v.ey=pt.y; }
+      renderVectors({keepHandleDom:true});
+    }
+  });
+  window.addEventListener('pointerup', e=>{
+    if(!drag) return;
+    if(drag.mode==='draw') finishDraw();
+    else if(drag.mode==='measure-length') finishMeasureLength();
+    else if(drag.mode==='pan'){ svg.classList.remove('panning'); drag=null; }
+    else if(drag.mode==='handle'){ finishHandleDrag(); }
+  });
+  svg.addEventListener('pointermove', e=>{
+    if(drag) return;
+    const p = getSvgPoint(e);
+    const hit = (state.tool==='select'||state.tool==='erase'||state.tool==='measure-length'||state.tool==='measure-angle') ? hitTestVector(p.x,p.y,10) : null;
+    const newHover = hit?hit.id:null;
+    if(newHover!==state.hoverId){ state.hoverId=newHover; renderVectors(); }
+  });
+}
+
+function setHint(text){ const el=document.getElementById('canvas-hint'); if(el) el.textContent=text; }
+/* =========================================================================
+   Bottom bar — contextual tool controls
+   ========================================================================= */
+function getBottomLabelValue(){
+  const el = document.getElementById('field-label');
+  return el ? el.value : 'U';
+}
+function setBottomNumber(id,val){ const el=document.getElementById(id); if(el) el.value = val; }
+function setLabelSelect(val){ const el=document.getElementById('field-label'); if(el) el.value = val; }
+
+function scaleControlHtml(){
+  return `
+  <div class="bottom-section">
+    <div class="field">
+      <label>Scale (m/s per grid)</label>
+      <input type="number" id="field-scale" min="5" max="1000" step="5" value="${state.gridUnit}">
+    </div>
+  </div>
+  <div class="bottom-divider"></div>
+  <div class="bottom-section">
+    <div class="field">
+      <label>Cursor (m/s)</label>
+      <div class="readout" style="padding-top:6px;"><b id="coord-readout" class="cursor-readout">0.0, 0.0</b></div>
+    </div>
+  </div>
+  <div class="bottom-divider"></div>`;
+}
+
+function buildDrawBar(){
+  const opts = labelOptions();
+  const used = new Set(state.vectors.map(v=>v.label));
+  const optHtml = opts.map(o=>`<option value="${o.v}" ${used.has(o.v)?'data-used="1"':''}>${o.t}${used.has(o.v)?' \u2713':''}</option>`).join('');
+  const originOpts = [`<option value="O">Origin O (0,0)</option>`]
+    .concat(state.vectors.map(v=>`<option value="${v.label}">Tip of ${v.label}</option>`)).join('');
+  return `
+  <div class="bottom-section">
+    <div class="field"><label>Vector</label>
+      <select id="field-label">${optHtml}</select>
+    </div>
+    <div class="field" id="custom-label-wrap" style="display:none;"><label>Custom label</label>
+      <input type="text" id="field-custom-label" maxlength="6" placeholder="e.g. Ca" style="width:70px;">
+    </div>
+  </div>
+  <div class="bottom-divider"></div>
+  <div class="bottom-section">
+    <div class="field"><label>Magnitude</label><input type="number" id="field-mag" min="0" step="5" value="0"></div>
+    <div class="field"><label>Angle \u00b0</label><input type="number" id="field-ang" min="-180" max="180" step="1" value="0"></div>
+    <div class="field"><label>From</label><select id="field-origin">${originOpts}</select></div>
+    <button class="btn primary" id="btn-place">Place vector</button>
+  </div>
+  <div class="bottom-divider"></div>
+  <div class="hint-text">Drag on the sheet to draw freehand, or type exact values and click Place vector. Drag near an existing tip to chain from it.</div>`;
+}
+
+function buildMeasureLengthBar(){
+  const m = state.measure;
+  const text = (m && (m.kind==='vector'||m.kind==='drag')) ? `<b>${m.len}</b>&nbsp;units&nbsp;&middot;&nbsp;<b>${m.angle}\u00b0</b>${m.label?(' &middot; '+m.label):''}` : 'Drag between two points, or click an existing vector.';
+  return `<div class="bottom-section"><div class="readout">${text}</div></div>`;
+}
+function buildMeasureAngleBar(){
+  const m = state.measure;
+  const text = (m && m.kind==='angle') ? `<b>${m.a}</b> \u2194 <b>${m.b}</b> &middot; <b>${m.angle}\u00b0</b>` : 'Click one vector, then a second (or empty space for the baseline).';
+  return `<div class="bottom-section"><div class="readout">${text}</div></div>`;
+}
+function buildSelectBar(){
+  const v = state.selectedId && findVector(state.selectedId);
+  if(!v) return `<div class="bottom-section hint-text">Click a vector to inspect it, or drag its endpoints to edit. Endpoints snap to the grid and to other vectors' tips.</div>`;
+  const actions = v.locked
+    ? `<div class="hint-text" style="max-width:200px;">Locked \u2014 part of a constructed diagram.</div><button class="btn small ghost" id="btn-unlock-selected">Unlock to edit</button>`
+    : `<button class="btn small" id="btn-del-selected">Delete</button>`;
+  return `<div class="bottom-section">
+    <div class="readout"><span>Vector</span><b style="color:${colorOfLabel(v.label)}">${v.label}</b>${v.locked?' <span style="color:var(--ink-dimmer);font-weight:500;">(locked)</span>':''}</div>
+    <div class="readout"><span>Length</span><b>${round1(vLen(v))}</b></div>
+    <div class="readout"><span>Angle</span><b>${round1(vAngle2(v))}\u00b0</b></div>
+  </div>
+  <div class="bottom-divider"></div>
+  ${actions}`;
+}
+function buildEraseBar(){ return `<div class="bottom-section hint-text">Click any vector on the sheet to delete it. Locked (constructed) vectors are protected — unlock them from the Select tool first.</div>`; }
+function buildPanBar(){ return `<div class="bottom-section hint-text">Drag anywhere to pan the sheet.</div>`; }
+
+function updateBottomBar(){
+  const bottom = document.getElementById('bottom');
+  let inner = scaleControlHtml();
+  if(state.tool==='draw') inner += buildDrawBar();
+  else if(state.tool==='measure-length') inner += buildMeasureLengthBar();
+  else if(state.tool==='measure-angle') inner += buildMeasureAngleBar();
+  else if(state.tool==='select') inner += buildSelectBar();
+  else if(state.tool==='erase') inner += buildEraseBar();
+  else if(state.tool==='pan') inner += buildPanBar();
+  bottom.innerHTML = inner;
+  const cw = document.getElementById('custom-label-wrap');
+  const fl = document.getElementById('field-label');
+  if(fl && cw) cw.style.display = (fl.value==='__custom__') ? 'flex' : 'none';
+}
+
+function wireBottomBar(){
+  const bottom = document.getElementById('bottom');
+  bottom.addEventListener('change', e=>{
+    if(e.target.id==='field-scale'){
+      const v = parseFloat(e.target.value); if(v>0){ state.gridUnit=v; renderGrid(); renderVectors(); }
+    }
+    if(e.target.id==='field-label'){
+      const cw = document.getElementById('custom-label-wrap');
+      if(cw) cw.style.display = (e.target.value==='__custom__') ? 'flex' : 'none';
+    }
+  });
+  bottom.addEventListener('click', e=>{
+    if(e.target.id==='btn-place'){ placeVectorFromFields(); }
+    if(e.target.id==='btn-del-selected'){ if(state.selectedId){ removeVector(state.selectedId); renderAll(); } }
+    if(e.target.id==='btn-unlock-selected'){
+      const v = state.selectedId && findVector(state.selectedId);
+      if(v){ snapshot(); v.locked=false; renderAll(); }
+    }
+  });
+}
+/* =========================================================================
+   Right panel: Guide (blurb/tutorial/construct) · Legend · Results
+   ========================================================================= */
+state.panelTab = 'guide';
+
+function ensureConstructState(key){
+  if(!state.construct[key]){
+    const d = (typeof DEMO!=='undefined' && DEMO[key]) ? DEMO[key] : {U:150,segs:[{Vin:500,alphaIn:20,betaOut:30,k:0.85}]};
+    state.construct[key] = { U:d.U, segs:[] };
+  }
+  const c = state.construct[key];
+  const n = segCountFor(key);
+  const d = (typeof DEMO!=='undefined' && DEMO[key]) ? DEMO[key] : null;
+  while(c.segs.length<n){
+    const idx = c.segs.length;
+    const base = d ? d.segs[Math.min(idx, d.segs.length-1)] : {};
+    c.segs.push(Object.assign({Vin:500, alphaIn:20, betaOut:30, k:0.85, holdVf:false, direction:'backward',
+                 guideAlpha:20, guideK:0.95, outletMode:'relative', Vout:250, alphaOut:160}, base));
+  }
+  return c;
+}
+
+function updatePanel(){
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.toggle('active', b.dataset.ptab===state.panelTab));
+  const body = document.getElementById('panel-body');
+  if(state.panelTab==='legend') body.innerHTML = buildLegendHtml();
+  else if(state.panelTab==='results') body.innerHTML = buildResultsHtml();
+  else body.innerHTML = buildGuideHtml();
+}
+
+/* ---------------- LEGEND ---------------- */
+function legendRow(label,color,dashed,desc){
+  return `<div class="legend-row">
+    <svg width="24" height="10" style="margin-top:5px;flex-shrink:0;"><line x1="1" y1="5" x2="23" y2="5" stroke="${color}" stroke-width="2.6" ${dashed?'stroke-dasharray="4.5 3.5"':''} stroke-linecap="round"/></svg>
+    <div class="legend-txt"><b>${label}</b><span>${desc}</span></div>
+  </div>`;
+}
+function buildLegendHtml(){
+  const t = currentTurbine(); const n = segCountFor(t.key);
+  let rows = legendRow('U', COLORS.U, false, 'Blade (peripheral) velocity \u2014 the shared reference for every triangle.');
+  for(let i=1;i<=n;i++){
+    const s = segLabels(i);
+    const tag = n>1 ? (t.segMode==='rows'? ` \u2014 row ${i}` : ` \u2014 stage ${i}`) : '';
+    rows += `<div style="margin:12px 0 4px;font-size:10.5px;color:var(--ink-dimmer);text-transform:uppercase;letter-spacing:.5px;">In/out of moving blade${tag}</div>`;
+    rows += legendRow(s.V_in, COLORS.V, false, `Absolute velocity entering the blade, at ${s.a_in} to U.`);
+    rows += legendRow(s.Vr_in, COLORS.Vr, false, `Velocity relative to the blade, entering, at ${s.b_in} to U.`);
+    rows += legendRow(s.Vw_in, COLORS.Vw, true, `Whirl (tangential) component of ${s.V_in}.`);
+    rows += legendRow(s.Vf_in, COLORS.Vf, true, `Flow (axial) component of ${s.V_in}.`);
+    rows += legendRow(s.V_out, COLORS.V, false, `Absolute velocity leaving the blade, at ${s.a_out} to U.`);
+    rows += legendRow(s.Vr_out, COLORS.Vr, false, `Velocity relative to the blade, leaving, at ${s.b_out} to U.`);
+    rows += legendRow(s.Vw_out, COLORS.Vw, true, `Whirl component of ${s.V_out}.`);
+    rows += legendRow(s.Vf_out, COLORS.Vf, true, `Flow component of ${s.V_out}.`);
+  }
+  return `<h3>Nomenclature</h3><p>Colour-coded to the whiteboard, following the notation in Venkanna's <i>Fundamentals of Turbomachinery</i>.</p>${rows}`;
+}
+
+/* ---------------- GUIDE ---------------- */
+function buildGuideHtml(){
+  const t = currentTurbine();
+  if(state.mode==='tutorial') return buildTutorialHtml(t);
+  if(state.mode==='construct') return buildConstructHtml(t);
+  return `<h3>${t.name} <span style="color:var(--ink-dimmer);font-weight:500;font-size:11.5px;">\u2014 ${t.tag}</span></h3>
+    <p>${t.blurb}</p>
+    <div class="card"><h4>Free draw</h4>
+      <div class="kv-row"><span class="k">Draw</span><span class="v">type values or drag</span></div>
+      <div class="kv-row"><span class="k">Measure length</span><span class="v">drag or click a vector</span></div>
+      <div class="kv-row"><span class="k">Measure angle</span><span class="v">click two vectors</span></div>
+    </div>
+    <p class="small-note">Switch to <b>Tutorial</b> above for a guided build of this stage, or <b>Construct</b> to generate the whole diagram from known values. Results update live on the <b>Results</b> tab as you place U, V and Vr vectors.</p>`;
+}
+
+function buildTutorialHtml(t){
+  const n = segCountFor(t.key);
+  const segIdx = clamp((state._tutSeg||1),1,n);
+  state._tutSeg = segIdx;
+  const seg = segLabels(segIdx);
+  const steps = t.steps(seg);
+  const stepIdx = clamp(state.tutorial[t.key]||0, 0, steps.length-1);
+  state.tutorial[t.key] = stepIdx;
+  const step = steps[stepIdx];
+  const dots = steps.map((s,i)=>`<div class="step-dot ${i===stepIdx?'active':(i<stepIdx?'done':'')}" data-step="${i}"></div>`).join('');
+  let segSwitcher = '';
+  if(n>1){
+    const label = t.segMode==='rows' ? 'Row' : 'Stage';
+    let opts = '';
+    for(let i=1;i<=n;i++) opts += `<option value="${i}" ${i===segIdx?'selected':''}>${label} ${i}</option>`;
+    segSwitcher = `<div class="field" style="margin-bottom:10px;"><label>${label}</label><select id="tut-seg-select">${opts}</select></div>`;
+  }
+  return `<h3>${t.name} <span style="color:var(--ink-dimmer);font-weight:500;font-size:11.5px;">\u2014 tutorial</span></h3>
+    <p>${t.tutorialIntro}</p>
+    ${segSwitcher}
+    <div class="card">
+      <h4>Step ${stepIdx+1} of ${steps.length}</h4>
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">${step.t}</div>
+      <p style="margin-bottom:0;">${step.d}</p>
+    </div>
+    <div class="stepper">
+      <button class="btn small" id="tut-prev" ${stepIdx===0?'disabled':''}>\u2190 Prev</button>
+      <div class="step-dots">${dots}</div>
+      <button class="btn small" id="tut-next" ${stepIdx===steps.length-1?'disabled':''}>Next \u2192</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn primary small" id="tut-draw-example">Show completed example</button>
+      <button class="btn small ghost" id="tut-restart">Restart</button>
+    </div>
+    <p class="small-note">The example uses illustrative textbook-style numbers so you can see the target shape while you build your own with the Draw tool.</p>`;
+}
+
+function fieldNum(id,label,val,step,extra){
+  return `<div class="field"><label>${label}</label><input type="number" id="${id}" value="${val}" step="${step||1}" ${extra||''}></div>`;
+}
+function fieldSel(id,label,options,val){
+  const o = options.map(([v,t])=>`<option value="${v}" ${v===val?'selected':''}>${t}</option>`).join('');
+  return `<div class="field"><label>${label}</label><select id="${id}">${o}</select></div>`;
+}
+
+function buildConstructHtml(t){
+  const key = t.key;
+  const c = ensureConstructState(key);
+  const n = segCountFor(key);
+  let segCountUi = '';
+  if(t.segMode!=='fixed'){
+    const label = t.segMode==='rows' ? 'Rows' : 'Stages';
+    let opts='';
+    for(let i=t.minSeg;i<=t.maxSeg;i++) opts+=`<option value="${i}" ${i===n?'selected':''}>${i}</option>`;
+    segCountUi = `<div class="field"><label>${label}</label><select id="ctor-segcount">${opts}</select></div>`;
+  }
+  let blocks = `<div class="construct-grid">${fieldNum('ctor-U','U \u2014 blade speed (m/s)',c.U,5)}${segCountUi}</div>`;
+
+  for(let i=1;i<=n;i++){
+    const s = segLabels(i);
+    const seg = c.segs[i-1];
+    const title = n>1 ? `${t.segMode==='rows'?'Row':'Stage'} ${i}` : 'Stage';
+    blocks += `<div class="stage-block"><h5>${title}</h5><div class="construct-grid">`;
+    if(t.key==='curtis' && i>1){
+      blocks += fieldNum(`ctor-${i}-guideAlpha`, `${s.a_in} \u2014 guide exit angle`, seg.guideAlpha, 1);
+      blocks += fieldNum(`ctor-${i}-guideK`, `Guide coeff. k\u2098`, seg.guideK, 0.01);
+      blocks += `<div class="small-note full-w">${s.V_in} = k\u2098 \u00d7 ${segLabels(i-1).V_out}, redirected to ${s.a_in} \u2014 the guide row adds no energy.</div>`;
+    } else {
+      blocks += fieldNum(`ctor-${i}-Vin`, `${s.V_in} (m/s)`, seg.Vin, 5);
+      blocks += fieldNum(`ctor-${i}-alphaIn`, `${s.a_in} (\u00b0)`, seg.alphaIn, 1);
+    }
+    if(t.key==='parsons'){
+      blocks += fieldNum(`ctor-${i}-k`, `Blade coeff. k`, seg.k, 0.01);
+      blocks += `<div class="small-note full-w">50% reaction: ${s.b_out} is set to ${s.a_in} and ${s.Vr_out} \u2248 k\u00d7${s.V_in} automatically.</div>`;
+    } else if(t.key==='general'){
+      blocks += fieldSel(`ctor-${i}-outmode`, `Define ${s.V_out}/${s.Vr_out} via`, [['relative',`${s.Vr_out} & ${s.b_out}`],['absolute',`${s.V_out} & ${s.a_out} directly`]], seg.outletMode);
+      if(seg.outletMode==='absolute'){
+        blocks += fieldNum(`ctor-${i}-Vout`, `${s.V_out} (m/s)`, seg.Vout, 5);
+        blocks += fieldNum(`ctor-${i}-alphaOut`, `${s.a_out} (\u00b0)`, seg.alphaOut, 1);
+      } else {
+        blocks += fieldNum(`ctor-${i}-betaOut`, `${s.b_out} (\u00b0)`, seg.betaOut, 1);
+        blocks += fieldNum(`ctor-${i}-k`, `Coeff. k = ${s.Vr_out}/${s.Vr_in}`, seg.k, 0.01);
+        blocks += fieldSel(`ctor-${i}-direction`, `${s.Vw_out} direction`, [['backward','opposes U (typical)'],['forward','same sense as U']], seg.direction);
+      }
+    } else {
+      blocks += fieldNum(`ctor-${i}-betaOut`, `${s.b_out} (\u00b0)`, seg.betaOut, 1);
+      blocks += fieldNum(`ctor-${i}-k`, `Coeff. k = ${s.Vr_out}/${s.Vr_in}`, seg.k, 0.01);
+      blocks += fieldSel(`ctor-${i}-direction`, `${s.Vw_out} direction`, [['backward','opposes U (typical)'],['forward','same sense as U']], seg.direction);
+      blocks += `<div class="checkline"><input type="checkbox" id="ctor-${i}-holdvf" ${seg.holdVf?'checked':''}><label for="ctor-${i}-holdvf">Hold ${s.Vf_out} = ${s.Vf_in} (constant axial velocity)</label></div>`;
+    }
+    blocks += `</div></div>`;
+  }
+  return `<h3>${t.name} <span style="color:var(--ink-dimmer);font-weight:500;font-size:11.5px;">\u2014 construct</span></h3>
+    <p>Fill in what you know; this replaces everything currently on the sheet with the solved diagram.</p>
+    ${blocks}
+    <button class="btn primary" id="ctor-build" style="width:100%;">Construct diagram</button>
+    <p class="small-note">Need a different combination of knowns (e.g. Vr1 and Vf1 instead of V1 and \u03b11)? Place vectors by hand with the Draw tool on the whiteboard \u2014 type an exact length and angle for any vector.</p>`;
+}
+
+/* ---------------- RESULTS ---------------- */
+function buildResultsHtml(){
+  const t = currentTurbine(); const n = segCountFor(t.key);
+  const Uv = vectorByLabel('U');
+  if(!Uv) return `<h3>Results</h3><div class="empty-note">Draw or construct a <b>U</b> vector first \u2014 results are computed live from whatever's on the sheet.</div>`;
+  const U = vLen(Uv);
+  const uHat = {x:(Uv.ex-Uv.ox)/U, y:(Uv.ey-Uv.oy)/U};
+  const fHat = {x:-uHat.y, y:uHat.x};
+  let totalWork = 0, foundAny=false, missing=0;
+  let cards = '';
+  for(let i=1;i<=n;i++){
+    const s = segLabels(i);
+    const Vin=vectorByLabel(s.V_in), Vout=vectorByLabel(s.V_out);
+    const Vrin=vectorByLabel(s.Vr_in), Vrout=vectorByLabel(s.Vr_out);
+    if(!Vin||!Vout){ missing++; cards+=`<div class="card"><h4>${n>1?(t.segMode==='rows'?'Row':'Stage')+' '+i:'Stage'}</h4><div class="small-note">Add ${s.V_in} and ${s.V_out} to compute this ${t.segMode==='rows'?'row':'stage'}.</div></div>`; continue; }
+    const win = (Vin.ex-Vin.ox)*uHat.x+(Vin.ey-Vin.oy)*uHat.y;
+    const wout = (Vout.ex-Vout.ox)*uHat.x+(Vout.ey-Vout.oy)*uHat.y;
+    const dVw = win-wout;
+    const work = U*dVw;
+    // include rotor reaction KE in the denominator when Vr1/Vr2 are on the board too
+    let rotorKE = 0, rHtml = '';
+    if(Vrin && Vrout){
+      const Vr1=vLen(Vrin), Vr2=vLen(Vrout);
+      rotorKE = Math.max(0, Vr2*Vr2-Vr1*Vr1);
+      const R = computeRFromMags(vLen(Vin),vLen(Vout),Vr1,Vr2);
+      rHtml = `<div class="kv-row"><span class="k">Degree of reaction R</span><span class="v">${round2(R)}</span></div>`;
+    }
+    const ke = 0.5*vLen(Vin)*vLen(Vin) + 0.5*rotorKE;
+    const eff = ke>0?work/ke:0;
+    totalWork += work; foundAny=true;
+    cards += `<div class="card"><h4>${n>1?(t.segMode==='rows'?'Row':'Stage')+' '+i:'Stage'}</h4>
+      <div class="kv-row"><span class="k">\u0394Vw = ${s.Vw_in}\u2212${s.Vw_out}</span><span class="v">${round1(dVw)} m/s</span></div>
+      <div class="kv-row"><span class="k">Specific work w = U\u00d7\u0394Vw</span><span class="v">${round1(work)} J/kg</span></div>
+      <div class="kv-row"><span class="k">Diagram efficiency</span><span class="v">${round2(eff)}</span></div>
+      ${rHtml}
+    </div>`;
+  }
+  let totalCard = '';
+  if(n>1 && foundAny){
+    totalCard = `<div class="card"><h4>Total (${missing?`${n-missing} of ${n} rows`:'all rows'})</h4>
+      <div class="kv-row"><span class="k">Total specific work</span><span class="v">${round1(totalWork)} J/kg</span></div></div>`;
+  }
+  return `<h3>Results</h3><p>Computed live from whatever's on the whiteboard \u2014 U is used as the tangential reference, whatever angle it's drawn at.</p>${cards}${totalCard}`;
+}
+/* =========================================================================
+   Construct / tutorial solving engine + all UI wiring + bootstrap
+   ========================================================================= */
+function getV(id){ const el=document.getElementById(id); return el?el.value:undefined; }
+function numOrKeep(v,fallback){ const n=parseFloat(v); return isNaN(n)?fallback:n; }
+function pushVectorRaw(v){ v.id=v.id||uid(); state.vectors.push(v); return v; }
+
+function solveAllSegments(key,U,segs){
+  const results=[]; let prevOutV=null;
+  for(let i=1;i<=segs.length;i++){
+    const seg = segs[i-1];
+    let opts;
+    if(key==='curtis' && i>1){
+      opts = {U, Vin: seg.guideK*prevOutV, alphaIn: seg.guideAlpha, betaOut:seg.betaOut,
+              k:seg.k, direction:seg.direction, holdVf:seg.holdVf};
+    } else if(key==='parsons'){
+      opts = {U, Vin:seg.Vin, alphaIn:seg.alphaIn, betaOut:seg.alphaIn,
+              Vrout:seg.k*seg.Vin, direction:'backward'};
+    } else if(key==='general'){
+      opts = {U, Vin:seg.Vin, alphaIn:seg.alphaIn, outletMode:seg.outletMode,
+              Vout:seg.Vout, alphaOut:seg.alphaOut, betaOut:seg.betaOut, k:seg.k, direction:seg.direction};
+    } else {
+      opts = {U, Vin:seg.Vin, alphaIn:seg.alphaIn, betaOut:seg.betaOut, k:seg.k,
+              direction:seg.direction, holdVf:seg.holdVf};
+    }
+    const r = solveSegment(opts);
+    results.push(r);
+    prevOutV = r.outlet.V;
+  }
+  return results;
+}
+
+function drawSegmentResult(segIdx,U,r,originX){
+  const s = segLabels(segIdx);
+  const O = {x:originX,y:0}, A = {x:originX+U,y:0};
+  pushVectorRaw({label:'U', ox:O.x,oy:O.y, ex:A.x,ey:A.y, locked:true});
+  const Cx=O.x+r.inlet.V*Math.cos(deg2rad(r.inlet.alpha)), Cy=O.y+r.inlet.V*Math.sin(deg2rad(r.inlet.alpha));
+  pushVectorRaw({label:s.V_in, ox:O.x,oy:O.y, ex:Cx,ey:Cy, locked:true});
+  pushVectorRaw({label:s.Vr_in, ox:A.x,oy:A.y, ex:Cx,ey:Cy, locked:true});
+  const Dx=A.x+r.outlet.Vrx, Dy=A.y+r.outlet.Vry;
+  pushVectorRaw({label:s.Vr_out, ox:A.x,oy:A.y, ex:Dx,ey:Dy, locked:true});
+  pushVectorRaw({label:s.V_out, ox:O.x,oy:O.y, ex:Dx,ey:Dy, locked:true});
+}
+
+function syncConstructFieldsFromDom(key){
+  const c = state.construct[key]; if(!c) return;
+  const uEl = document.getElementById('ctor-U'); if(uEl) c.U = numOrKeep(uEl.value,c.U);
+  c.segs.forEach((seg,idx)=>{
+    const i = idx+1;
+    seg.guideAlpha = numOrKeep(getV(`ctor-${i}-guideAlpha`),seg.guideAlpha);
+    seg.guideK     = numOrKeep(getV(`ctor-${i}-guideK`),seg.guideK);
+    seg.Vin        = numOrKeep(getV(`ctor-${i}-Vin`),seg.Vin);
+    seg.alphaIn    = numOrKeep(getV(`ctor-${i}-alphaIn`),seg.alphaIn);
+    seg.Vout       = numOrKeep(getV(`ctor-${i}-Vout`),seg.Vout);
+    seg.alphaOut   = numOrKeep(getV(`ctor-${i}-alphaOut`),seg.alphaOut);
+    seg.betaOut    = numOrKeep(getV(`ctor-${i}-betaOut`),seg.betaOut);
+    seg.k          = numOrKeep(getV(`ctor-${i}-k`),seg.k);
+    const om = document.getElementById(`ctor-${i}-outmode`); if(om) seg.outletMode = om.value;
+    const d  = document.getElementById(`ctor-${i}-direction`); if(d) seg.direction = d.value;
+    const hv = document.getElementById(`ctor-${i}-holdvf`); if(hv) seg.holdVf = hv.checked;
+  });
+}
+
+function runConstruct(){
+  const t = currentTurbine(); const key = t.key;
+  syncConstructFieldsFromDom(key);
+  const c = state.construct[key];
+  const results = solveAllSegments(key, c.U, c.segs.slice(0, segCountFor(key)));
+  clearVectors(false);
+  let originX = 0;
+  results.forEach((r,idx)=>{ drawSegmentResult(idx+1, c.U, r, originX); originX += Math.max(c.U*1.7,260); });
+  state.panelTab = 'results';
+  setHint(`${t.name} diagram constructed from your values \u2014 check the Results tab.`);
+  renderAll();
+}
+
+const DEMO = {
+  delaval:{U:200, segs:[{Vin:600,alphaIn:20,betaOut:30,k:0.85,direction:'backward',holdVf:false}]},
+  curtis:{U:120, segs:[
+    {Vin:600,alphaIn:20,betaOut:25,k:0.9,direction:'backward',holdVf:false},
+    {guideAlpha:25,guideK:0.95,betaOut:30,k:0.9,direction:'backward',holdVf:false}]},
+  rateau:{U:150, segs:[
+    {Vin:350,alphaIn:18,betaOut:25,k:0.88,direction:'backward',holdVf:false},
+    {Vin:340,alphaIn:18,betaOut:25,k:0.88,direction:'backward',holdVf:false}]},
+  parsons:{U:150, segs:[{Vin:250,alphaIn:20,k:0.95}]},
+  general:{U:180, segs:[{Vin:400,alphaIn:22,outletMode:'relative',betaOut:35,k:0.85,direction:'backward'}]}
+};
+function runTutorialExample(){
+  const t = currentTurbine(); const n = segCountFor(t.key);
+  const demo = DEMO[t.key];
+  const segs = []; for(let i=0;i<n;i++) segs.push(demo.segs[Math.min(i,demo.segs.length-1)]);
+  const results = solveAllSegments(t.key, demo.U, segs);
+  clearVectors(false);
+  let originX=0;
+  results.forEach((r,idx)=>{ drawSegmentResult(idx+1, demo.U, r, originX); originX += Math.max(demo.U*1.7,260); });
+  state.panelTab='results';
+  setHint(`Worked example drawn with illustrative numbers \u2014 now try building your own on a cleared sheet.`);
+  renderAll();
+}
+
+/* ---------------- topbar ---------------- */
+function updateTopbar(){
+  const tt = document.getElementById('turbine-tabs');
+  tt.innerHTML = TURBINE_ORDER.map(k=>{
+    const t = TURBINES[k];
+    return `<button class="tab-btn ${state.turbineKey===k?'active':''}" data-turbine="${k}">${t.name}<span class="stagename">${t.tag}</span></button>`;
+  }).join('');
+  const mt = document.getElementById('mode-tabs');
+  const modes = [['free','Free draw'],['tutorial','Tutorial'],['construct','Construct']];
+  mt.innerHTML = modes.map(([k,label])=>`<button class="tab-btn ${state.mode===k?'active':''}" data-mode="${k}">${label}</button>`).join('');
+}
+
+/* ---------------- export ---------------- */
+const EXPORT_VARS = {
+  '--vellum-line-major':'#C6B98A','--vellum-line':'#D8CEA8','--ink-canvas':'#22262A',
+  '--font-mono':"'JetBrains Mono',monospace",'--vellum':'#F2EEDE'
+};
+function resolveVarsInSvgString(str){
+  let out = str;
+  Object.keys(EXPORT_VARS).forEach(k=>{
+    const re = new RegExp('var\\('+k.replace(/[-[\]{}()*+?.,\\^$|#\s]/g,'\\$&')+'\\)','g');
+    out = out.replace(re, EXPORT_VARS[k]);
+  });
+  return out;
+}
+// Saving the exported PNG tries three paths, in order, depending on where this page is
+// running:
+//   1. The Claude Artifact viewer's `downloads` capability (window.claude present) — shows
+//      the viewer a confirmation with the final filename before saving.
+//   2. The File System Access API (window.showSaveFilePicker) — a real, native "Save As"
+//      dialog letting the user pick the folder and filename. Supported in Chromium-family
+//      browsers when this file is opened directly (double-clicked, or served over http(s)/
+//      file://); not in Firefox or Safari.
+//   3. A plain <a download> click — always available as a last resort, but saves straight to
+//      the browser's default downloads folder with no location prompt.
+let downloadsCap = null;
+let downloadsCapChecked = false;
+async function ensureDownloadsCap(){
+  if(downloadsCapChecked) return downloadsCap;
+  downloadsCapChecked = true;
+  try{
+    if(window.claude && typeof window.claude.use==='function'){
+      downloadsCap = await window.claude.use('downloads');
+    }
+  } catch(e){ downloadsCap = null; }
+  return downloadsCap;
+}
+function supportsSavePicker(){ return typeof window.showSaveFilePicker==='function'; }
+async function savePngBlob(blob, filename){
+  const cap = await ensureDownloadsCap();
+  if(cap){
+    try{ await cap.save({filename, data:blob}); return {ok:true, mode:'claude'}; }
+    catch(err){
+      if(err && err.code==='declined') return {ok:false, mode:'claude', declined:true};
+      throw err;
+    }
+  }
+  if(supportsSavePicker()){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description:'PNG image', accept:{'image/png':['.png']} }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return {ok:true, mode:'picker'};
+    } catch(err){
+      if(err && err.name==='AbortError') return {ok:false, mode:'picker', declined:true};
+      throw err;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  return {ok:true, mode:'anchor'};
+}
+function exportPNG(){
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  clone.setAttribute('width', svg._w); clone.setAttribute('height', svg._h);
+  let str = new XMLSerializer().serializeToString(clone);
+  str = resolveVarsInSvgString(str);
+  const blob = new Blob([str], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = async function(){
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = svg._w*scale; canvas.height = svg._h*scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = EXPORT_VARS['--vellum'];
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(async b=>{
+      if(!b){ setHint('Could not render an image in this browser.'); return; }
+      try{
+        const res = await savePngBlob(b, `turbograph-${state.turbineKey}.png`);
+        if(res.declined){ setHint('Save cancelled.'); return; }
+        setHint(res.mode==='anchor' ? 'Diagram downloaded to your Downloads folder.' : 'Diagram saved.');
+      } catch(err){
+        setHint('Could not save the file right now.');
+      }
+    }, 'image/png');
+  };
+  img.onerror = function(){ setHint('Could not export an image in this browser.'); };
+  img.src = url;
+}
+
+/* ---------------- wiring ---------------- */
+function setTool(tool){
+  state.tool = tool;
+  drag = null; angleFirst = null;
+  clearDraft();
+  clearSnapIndicator();
+  document.querySelectorAll('.rail-btn[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===tool));
+  svg.className = 'tool-'+tool;
+  updateBottomBar();
+}
+
+function wireAll(){
+  updateTopbar();
+  document.getElementById('turbine-tabs').addEventListener('click', e=>{
+    const b = e.target.closest('[data-turbine]'); if(!b) return;
+    const key = b.dataset.turbine;
+    if(key===state.turbineKey) return;
+    state.turbineKey = key;
+    const t = TURBINES[key];
+    state.segCount = t.segMode==='fixed' ? 1 : t.segCount;
+    state._tutSeg = 1;
+    state.panelTab = 'guide';
+    if(state.vectors.length) clearVectors(false);
+    updateTopbar();
+    renderAll();
+  });
+  document.getElementById('mode-tabs').addEventListener('click', e=>{
+    const b = e.target.closest('[data-mode]'); if(!b) return;
+    state.mode = b.dataset.mode;
+    state.panelTab = 'guide';
+    updateTopbar();
+    renderAll();
+  });
+
+  document.querySelectorAll('.rail-btn[data-tool]').forEach(b=>{
+    b.addEventListener('click', ()=>setTool(b.dataset.tool));
+  });
+  document.getElementById('toggle-grid').addEventListener('click', function(){
+    state.gridOn = !state.gridOn; this.classList.toggle('on', state.gridOn); renderGrid();
+  });
+  document.getElementById('toggle-snap').addEventListener('click', function(){
+    state.snapOn = !state.snapOn; this.classList.toggle('on', state.snapOn);
+  });
+  document.getElementById('toggle-orientation').addEventListener('click', function(){
+    toggleOrientation();
+    this.classList.toggle('on', state.orientation==='down');
+    this.title = state.orientation==='down' ? 'Flip orientation (currently: downward)' : 'Flip orientation (currently: upward)';
+  });
+  document.getElementById('btn-undo').addEventListener('click', undo);
+  document.getElementById('btn-redo').addEventListener('click', redo);
+  document.getElementById('btn-clear').addEventListener('click', ()=>{ clearVectors(false); renderAll(); });
+  document.getElementById('btn-export').addEventListener('click', exportPNG);
+  document.getElementById('btn-help').addEventListener('click', ()=>{ document.getElementById('about-overlay').hidden=false; });
+  document.getElementById('about-close').addEventListener('click', ()=>{ document.getElementById('about-overlay').hidden=true; });
+  document.getElementById('about-overlay').addEventListener('click', e=>{ if(e.target.id==='about-overlay') e.currentTarget.hidden=true; });
+
+  document.querySelectorAll('.ptab').forEach(b=>{
+    b.addEventListener('click', ()=>{ state.panelTab=b.dataset.ptab; updatePanel(); });
+  });
+
+  const panelBody = document.getElementById('panel-body');
+  panelBody.addEventListener('click', e=>{
+    const t = currentTurbine();
+    if(e.target.id==='tut-prev'){ state.tutorial[t.key]=Math.max(0,(state.tutorial[t.key]||0)-1); updatePanel(); }
+    else if(e.target.id==='tut-next'){ const steps=t.steps(segLabels(state._tutSeg||1)); state.tutorial[t.key]=Math.min(steps.length-1,(state.tutorial[t.key]||0)+1); updatePanel(); }
+    else if(e.target.classList.contains('step-dot')){ state.tutorial[t.key]=parseInt(e.target.dataset.step); updatePanel(); }
+    else if(e.target.id==='tut-draw-example'){ runTutorialExample(); }
+    else if(e.target.id==='tut-restart'){ state.tutorial[t.key]=0; updatePanel(); }
+    else if(e.target.id==='ctor-build'){ runConstruct(); }
+  });
+  panelBody.addEventListener('change', e=>{
+    const t = currentTurbine();
+    if(e.target.id==='tut-seg-select'){ state._tutSeg=parseInt(e.target.value); state.tutorial[t.key]=0; updatePanel(); }
+    else if(e.target.id==='ctor-segcount'){ syncConstructFieldsFromDom(t.key); state.segCount=parseInt(e.target.value); updatePanel(); }
+    else if(/^ctor-\d+-outmode$/.test(e.target.id)){ syncConstructFieldsFromDom(t.key); updatePanel(); }
+  });
+}
+
+/* ---------------- boot ---------------- */
+function boot(){
+  initSvg();
+  wirePointer();
+  wireBottomBar();
+  wireAll();
+  updateBottomBar();
+  updatePanel();
+  setTool('draw');
+  renderAll();
+  // The export button is always active — anchor-download is a universal fallback — this just
+  // sets an accurate tooltip for which save path this particular view will actually use.
+  ensureDownloadsCap().then(cap=>{
+    const btn = document.getElementById('btn-export');
+    if(!btn) return;
+    if(cap) btn.title = 'Export whiteboard as PNG (confirm & save)';
+    else if(supportsSavePicker()) btn.title = 'Export whiteboard as PNG (choose where to save)';
+    else btn.title = 'Export whiteboard as PNG (saves to your Downloads folder)';
+  });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+</script>
+</body>
+</html>

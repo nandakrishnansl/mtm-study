@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Turbine Pressure & Velocity Profiles</title>
+    <script src="vendor/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7f9;
+            color: #2c3e50;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #1a252f;
+            margin-bottom: 30px;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            background: #ecf0f1;
+            border-radius: 6px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.2s ease-in-out;
+        }
+        .tab:hover {
+            background: #bdc3c7;
+            color: #2c3e50;
+        }
+        .tab.active {
+            background: #3498db;
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+        }
+        .metadata-container {
+            background: #f8f9fa;
+            border-left: 5px solid #2ecc71;
+            padding: 15px 20px;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .metadata {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #27ae60;
+            letter-spacing: 0.5px;
+        }
+        .chart-container {
+            position: relative;
+            height: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Turbine Pressure & Velocity Profiles</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="updateChart('delaval', event)">De Laval</button>
+            <button class="tab" onclick="updateChart('curtis', event)">Curtis</button>
+            <button class="tab" onclick="updateChart('rateau', event)">Rateau</button>
+            <button class="tab" onclick="updateChart('parsons', event)">Parsons</button>
+        </div>
+        
+        <div class="metadata-container">
+            <div id="metadata" class="metadata">Single Stage | Axial | Simple (Uncompounded) | Impulse Turbine</div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="turbineChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const data = {
+            'delaval': {
+                meta: 'Single Stage | Axial | Simple (Uncompounded) | Impulse Turbine',
+                labels: ['Inlet', 'Nozzle', 'Moving Blade', 'Exhaust'],
+                pressure: [100, 10, 10, 10],
+                velocity: [10, 100, 20, 20]
+            },
+            'curtis': {
+                meta: 'Multi Stage | Axial | Velocity Compounded | Impulse Turbine',
+                labels: ['Inlet', 'Nozzle', 'Moving 1', 'Fixed 1', 'Moving 2', 'Exhaust'],
+                pressure: [100, 10, 10, 10, 10, 10],
+                velocity: [10, 100, 60, 60, 20, 20]
+            },
+            'rateau': {
+                meta: 'Multi Stage | Axial | Pressure Compounded | Impulse Turbine',
+                labels: ['Inlet', 'Nozzle 1', 'Moving 1', 'Nozzle 2', 'Moving 2', 'Nozzle 3', 'Moving 3', 'Exhaust'],
+                pressure: [100, 70, 70, 40, 40, 10, 10, 10],
+                velocity: [10, 50, 20, 50, 20, 50, 20, 20]
+            },
+            'parsons': {
+                meta: 'Multi Stage | Axial | Continuous Expansion | 50% Reaction Turbine',
+                labels: ['Inlet', 'Fixed 1', 'Moving 1', 'Fixed 2', 'Moving 2', 'Fixed 3', 'Moving 3', 'Exhaust'],
+                pressure: [100, 85, 70, 55, 40, 25, 10, 10],
+                velocity: [10, 40, 25, 40, 25, 40, 25, 25]
+            }
+        };
+
+        const ctx = document.getElementById('turbineChart').getContext('2d');
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data['delaval'].labels,
+                datasets: [
+                    {
+                        label: 'Pressure',
+                        data: data['delaval'].pressure,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#2980b9',
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0,
+                    },
+                    {
+                        label: 'Absolute Velocity',
+                        data: data['delaval'].velocity,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.05)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#c0392b',
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 110,
+                        title: { display: true, text: 'Relative Magnitude (%)', font: { size: 14, weight: 'bold' }, color: '#34495e' },
+                        grid: { color: '#ecf0f1' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Turbine Stages', font: { size: 14, weight: 'bold' }, color: '#34495e' },
+                        grid: { color: '#ecf0f1' }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top', 
+                        labels: { font: { size: 14, family: 'Segoe UI' }, usePointStyle: true, boxWidth: 10 } 
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(44, 62, 80, 0.9)',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 },
+                        padding: 10
+                    }
+                }
+            }
+        });
+
+        function updateChart(type, event) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if(event) {
+                event.target.classList.add('active');
+            }
+
+            document.getElementById('metadata').innerText = data[type].meta;
+
+            chart.data.labels = data[type].labels;
+            chart.data.datasets[0].data = data[type].pressure;
+            chart.data.datasets[1].data = data[type].velocity;
+            chart.update();
+        }
+    </script>
+</body>
+</html>
