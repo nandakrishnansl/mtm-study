@@ -26,7 +26,7 @@ THREE WAYS TO RUN IT
    Share > Add to Home Screen. After the first visit the slides you have viewed also work offline.
 
 UPDATING AFTER YOU CHANGE ANY FILE
-Raise the version name at the top of sw.js (V = 'mtm-v7' -> 'mtm-v8') so phones fetch the new copy.
+Raise the version name at the top of sw.js (V = 'mtm-v8' -> 'mtm-v9') so phones fetch the new copy.
 
 BEFORE YOU SHARE IT
 - Explanations, question outlines and numerical solutions written for the app show a
@@ -55,3 +55,11 @@ in MTM.themes in js/core.js.
 
 QUICK CHECKS
 Students can switch the end-of-topic practice questions off with the "Quick checks" button on any study slide.
+
+VISIT COUNTER (OPTIONAL, ANONYMOUS)
+To see whether anyone is using the app: make a free site at goatcounter.com, then put its code (the part before
+".goatcounter.com") between the quotes in js/stats.js (GOATCOUNTER_CODE = ''), raise the version in sw.js and upload.
+It counts app opens, which section is opened (never slide numbers), and installs to the home screen. It records no names,
+emails or progress, and it is off while the code is empty. Settings tells students when it is on.
+Your own phone or laptop: open the app once with ?stats=off added to the address (for example
+https://yourname.github.io/mtm-study/?stats=off) and that device is no longer counted. ?stats=on turns it back on.
